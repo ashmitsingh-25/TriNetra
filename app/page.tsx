@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import SculptureHero from "@/components/ui/liquid-sculpture-hero"
+import GenkubRobotScene from "@/components/ui/genkub-robot-scene"
 import AuthModal from "@/components/ui/auth-modal"
 import { 
   ShieldAlert, 
@@ -92,6 +93,13 @@ export default function Home() {
         speed={1.2}
         liquid={1.4}
         turbulence={1.3}
+        centerElement={
+          <div className="relative flex items-center justify-center pointer-events-none">
+            <div className="h-[260px] w-[260px] sm:h-[320px] sm:w-[320px] md:h-[380px] md:w-[380px]">
+              <GenkubRobotScene className="h-full w-full" modelScale={2.4} />
+            </div>
+          </div>
+        }
         customNavRight={
           <div className="flex items-center gap-3">
             {currentUser ? (

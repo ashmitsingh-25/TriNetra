@@ -1609,11 +1609,6 @@ export default function SculptureHero(props: SculptureHeroProps) {
       <div ref={stageRef} className="sh-stage" aria-hidden="true">
         <img ref={imgRef} className="sh-fallback" src={activeSrc} alt="" crossOrigin="anonymous" draggable={false} />
       </div>
-      {centerElement ? (
-        <div className="absolute inset-0 z-[1] flex items-center justify-center pointer-events-none">
-          {centerElement}
-        </div>
-      ) : null}
       <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{imageAlt}</span>
 
       {showNav && (
@@ -1665,7 +1660,9 @@ export default function SculptureHero(props: SculptureHeroProps) {
         </div>
       ) : null}
 
-      <div className="sh-spacer" />
+      <div className="sh-spacer relative z-10 flex items-center justify-center pointer-events-none min-h-0 overflow-visible py-2">
+        {centerElement}
+      </div>
 
       <div ref={contentRef} className="sh-content">
         <div>

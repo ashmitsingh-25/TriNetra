@@ -6,9 +6,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 
 interface GenkubRobotSceneProps {
   className?: string
+  modelScale?: number
 }
 
-export default function GenkubRobotScene({ className = "" }: GenkubRobotSceneProps) {
+export default function GenkubRobotScene({ className = "", modelScale = 2.4 }: GenkubRobotSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
 
@@ -27,26 +28,26 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.2
+    renderer.toneMappingExposure = 1.3
     container.appendChild(renderer.domElement)
 
-    // Lighting with TriNETRA theme accents
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4)
+    // Lighting setup for high-contrast obsidian + hot pink + chartreuse aesthetic
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5)
     scene.add(ambientLight)
 
-    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.2)
     mainLight.position.set(5, 8, 5)
     scene.add(mainLight)
 
-    // Hot pink rim light
-    const pinkRim = new THREE.DirectionalLight(0xff2a8d, 2.5)
-    pinkRim.position.set(-5, 3, -2)
+    // Vivid Hot pink rim light
+    const pinkRim = new THREE.DirectionalLight(0xff2a8d, 3.2)
+    pinkRim.position.set(-6, 3, -1)
     scene.add(pinkRim)
 
-    // Chartreuse under-glow
-    const chartreuseGlow = new THREE.PointLight(0xe5ff40, 2.0, 10)
-    chartreuseGlow.position.set(0, -2, 2)
-    scene.add(chartreuseGlow)
+    // High-voltage Chartreuse accent light
+    const chartreuseLight = new THREE.PointLight(0xe5ff40, 2.8, 12)
+    chartreuseLight.position.set(4, -2, 2.5)
+    scene.add(chartreuseLight)
 
     let modelRoot: THREE.Group | null = null
     let headNode: THREE.Object3D | null = null
@@ -54,10 +55,13 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
     let neckNode: THREE.Object3D | null = null
     let mixer: THREE.AnimationMixer | null = null
 
+    const initialHeadRot = new THREE.Euler()
+    const initialEyesRot = new THREE.Euler()
+    const initialNeckRot = new THREE.Euler()
+
     const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 }
 
     const onMouseMove = (e: MouseEvent) => {
-      // Normalize to -1 ... 1 based on window
       const nx = (e.clientX / window.innerWidth) * 2 - 1
       const ny = -(e.clientY / window.innerHeight) * 2 + 1
       mouse.targetX = THREE.MathUtils.clamp(nx, -1, 1)
@@ -66,38 +70,42 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
 
     window.addEventListener("mousemove", onMouseMove, { passive: true })
 
+    // Load genkub_greeting_robot.glb
     const loader = new GLTFLoader()
     loader.load(
-      "/models/genkub_greeting_robot.gltf",
+      "/models/genkub_greeting_robot.glb",
       (gltf) => {
         modelRoot = gltf.scene
 
-        // Traverse to locate head, eyes, and apply material upgrades
+        // Find Head, Eyes, and Neck nodes
         modelRoot.traverse((child) => {
           const name = child.name.toLowerCase()
-          if (name === "head" || name.includes("head")) {
-            if (!headNode || child.name === "Head") headNode = child
+          if (child.name === "Head" || (name.includes("head") && !headNode)) {
+            headNode = child
+            initialHeadRot.copy(child.rotation)
           }
-          if (name.includes("eye") || name === "eyes move") {
-            if (!eyesNode || child.name === "Eyes Move") eyesNode = child
+          if (child.name === "Eyes Move" || child.name === "Eyes" || (name.includes("eye") && !eyesNode)) {
+            eyesNode = child
+            initialEyesRot.copy(child.rotation)
           }
-          if (name.includes("neck")) {
+          if (child.name === "Neck" || (name.includes("neck") && !neckNode)) {
             neckNode = child
+            initialNeckRot.copy(child.rotation)
           }
         })
 
-        // Center and normalize model size
+        // Center and normalize model bounds
         const box = new THREE.Box3().setFromObject(modelRoot)
         const center = box.getCenter(new THREE.Vector3())
         const size = box.getSize(new THREE.Vector3())
         const maxDim = Math.max(size.x, size.y, size.z) || 1
-        const scale = 2.4 / maxDim
+        const scale = modelScale / maxDim
         modelRoot.scale.setScalar(scale)
-        modelRoot.position.set(-center.x * scale, -center.y * scale - 0.1, -center.z * scale)
+        modelRoot.position.set(-center.x * scale, -center.y * scale - 0.08, -center.z * scale)
 
         scene.add(modelRoot)
 
-        // Play animations if present
+        // Play idle / greeting animations if available
         if (gltf.animations && gltf.animations.length > 0) {
           mixer = new THREE.AnimationMixer(modelRoot)
           gltf.animations.forEach((clip) => {
@@ -110,7 +118,7 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
       },
       undefined,
       (err) => {
-        console.error("Failed to load genkub_greeting_robot.gltf:", err)
+        console.error("Failed to load genkub_greeting_robot.glb:", err)
         setLoading(false)
       }
     )
@@ -126,31 +134,32 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
         mixer.update(delta)
       }
 
-      // Smooth interpolation towards cursor
+      // Smooth cursor interpolation
       mouse.x = THREE.MathUtils.lerp(mouse.x, mouse.targetX, 0.08)
       mouse.y = THREE.MathUtils.lerp(mouse.y, mouse.targetY, 0.08)
 
       // Rotate Head to look at cursor
       if (headNode) {
-        headNode.rotation.y = THREE.MathUtils.lerp(headNode.rotation.y, mouse.x * 0.65, 0.1)
-        headNode.rotation.x = THREE.MathUtils.lerp(headNode.rotation.x, -mouse.y * 0.45, 0.1)
+        headNode.rotation.y = initialHeadRot.y + THREE.MathUtils.lerp(0, mouse.x * 0.65, 0.1)
+        headNode.rotation.x = initialHeadRot.x + THREE.MathUtils.lerp(0, -mouse.y * 0.45, 0.1)
       }
 
-      // Rotate Eyes with slightly faster responsiveness
+      // Rotate Eyes with responsive tracking
       if (eyesNode) {
-        eyesNode.rotation.y = THREE.MathUtils.lerp(eyesNode.rotation.y, mouse.x * 0.85, 0.15)
-        eyesNode.rotation.x = THREE.MathUtils.lerp(eyesNode.rotation.x, -mouse.y * 0.65, 0.15)
+        eyesNode.rotation.y = initialEyesRot.y + THREE.MathUtils.lerp(0, mouse.x * 0.85, 0.15)
+        eyesNode.rotation.x = initialEyesRot.x + THREE.MathUtils.lerp(0, -mouse.y * 0.65, 0.15)
       }
 
       // Subtle neck alignment
       if (neckNode) {
-        neckNode.rotation.y = THREE.MathUtils.lerp(neckNode.rotation.y, mouse.x * 0.25, 0.06)
+        neckNode.rotation.y = initialNeckRot.y + THREE.MathUtils.lerp(0, mouse.x * 0.25, 0.06)
       }
 
-      // Gentle floating hover motion for the whole robot
+      // Gentle floating hover & slight body turn
       if (modelRoot) {
         const t = clock.getElapsedTime()
-        modelRoot.position.y += Math.sin(t * 2) * 0.0008
+        modelRoot.rotation.y = mouse.x * 0.18
+        modelRoot.position.y += Math.sin(t * 2.2) * 0.0007
       }
 
       renderer.render(scene, camera)
@@ -178,7 +187,7 @@ export default function GenkubRobotScene({ className = "" }: GenkubRobotScenePro
         container.removeChild(renderer.domElement)
       }
     }
-  }, [])
+  }, [modelScale])
 
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
