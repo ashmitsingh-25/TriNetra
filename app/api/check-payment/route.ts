@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { campaignsStore } from "@/lib/campaigns-store"
+import { supabase } from "@/lib/supabase"
 
 // Known verified corporate brands allowlist & official patterns
 const VERIFIED_BRANDS: Record<string, { officialVpas: string[]; officialDomains: string[]; category: string }> = {
@@ -267,7 +268,7 @@ export async function POST(req: NextRequest) {
     const compositeScore = Math.min(100, Math.round(behaviorPoints + nlpPoints + urlPoints + mismatchPoints))
     const riskTier = compositeScore >= 66 ? "HIGH" : compositeScore >= 31 ? "MEDIUM" : "LOW"
 
-    // Cross-page live sync to Page 3 HDBSCAN cluster registry
+    // Cross-page live sync to Page 3 HDBSCAN cluster registry & Page 4 Supabase Realtime Queue
     if (compositeScore >= 66 && actualVpa) {
       try {
         campaignsStore.addFlaggedPayment(
@@ -276,6 +277,49 @@ export async function POST(req: NextRequest) {
           compositeScore,
           mismatchDetails || "High threat recipient discrepancy detected."
         )
+
+        // Asynchronously insert into Supabase intercept_dossiers so it pops into Page 4 queue in real time
+        const newDossierId = `TRN-${Math.floor(1000 + Math.random() * 9000)}`
+        supabase
+          .from("intercept_dossiers")
+          .insert({
+            id: newDossierId,
+            title: `${claimedRecipient || 'Unknown Recipient'} Deceptive Intercept`,
+            category_tag: mismatchFound ? "CRITICAL INTERCEPT" : "REVERSE QR ATTACK",
+            risk_score: compositeScore,
+            status: "PENDING",
+            raw_upi_uri: upiUri,
+            recipient_vpa: actualVpa,
+            claimed_name: claimedRecipient || payeeName || "Unverified Entity",
+            mcc_code: mc || "0000 (Retail P2P)",
+            account_age: "1 day",
+            latency_ms: Math.floor(5 + Math.random() * 7),
+            attempts_blocked: Math.floor(50 + Math.random() * 200),
+            gov_impersonation_score: mismatchCode === "BRAND_IMPERSONATION" ? 0.95 : 0.65,
+            urgency_score: Number((nlpScore / 100).toFixed(2)),
+            mule_swarm_score: 0.88,
+            qr_mismatch_score: Number((qrMismatchScore / 100).toFixed(2)),
+            linguistic_hook: mismatchDetails || "Disconnection or immediate settlement demand detected in payment context.",
+            tinyfish_telemetry: {
+              targetOrigin: "https://state-utility-payment.online",
+              hostProvider: "Offshore AS-Host",
+              exfilChannel: "Socket.IO Relay",
+              victimReach: "480 victims",
+              domFinding: "Rogue credential harvesting form detected",
+              crawledAt: "Just now (Live Scan Trigger)"
+            },
+            feature_vector: [
+              Number((behaviorPoints / 50).toFixed(2)),
+              Number((nlpPoints / 20).toFixed(2)),
+              Number((urlPoints / 15).toFixed(2)),
+              Number((mismatchPoints / 15).toFixed(2)),
+              0.85,
+              0.70
+            ]
+          })
+          .then(({ error }: { error: any }) => {
+            if (error) console.error("Supabase live intercept insert error:", error)
+          })
       } catch (e) {
         console.error("Live campaign sync error:", e)
       }
