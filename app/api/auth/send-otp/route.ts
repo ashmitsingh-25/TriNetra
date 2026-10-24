@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { supabase } from "@/lib/supabase"
 
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -46,25 +45,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 4. Trigger Supabase native signInWithOtp (which sends the email via Supabase's mail service)
-    let supabaseAuthDispatched = false
-    try {
-      const { error: sbError } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: true,
-        },
-      })
-      if (!sbError) {
-        supabaseAuthDispatched = true
-      } else {
-        console.warn("[send-otp] Supabase native signInWithOtp note:", sbError.message)
-      }
-    } catch (e: any) {
-      console.warn("[send-otp] Supabase signInWithOtp exception:", e?.message)
-    }
-
-    // 5. HTML Email Template with high-contrast 6-digit numeric display
+    // 4. HTML Email Template with high-contrast 6-digit numeric display
     const emailHtmlBody = `
       <div style="background:#050505;color:#ffffff;padding:24px;border-radius:12px;font-family:sans-serif;border:1px solid #ff2a8d;max-width:480px;margin:0 auto;">
         <p style="color:#ff2a8d;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px 0;font-weight:700;">त्रिNETRA Security Verification</p>
@@ -74,15 +55,58 @@ export async function POST(req: NextRequest) {
       </div>
     `
 
-    console.log(`[send-otp] Dispatched 6-digit OTP for ${cleanEmail}: ${otpCode}`)
+    let emailDispatched = false
 
+    // 5. If Resend API Key is available, dispatch directly via Resend API
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL || "TriNETRA Security <onboarding@resend.dev>",
+            to: [cleanEmail],
+            subject: `Your त्रिNETRA Verification Code: ${otpCode}`,
+            html: emailHtmlBody,
+          }),
+        })
+        if (resendRes.ok) {
+          emailDispatched = true
+          console.log(`[send-otp] Dispatched via Resend to ${cleanEmail}`)
+        }
+      } catch (resendErr) {
+        console.warn("[send-otp] Resend dispatch note:", resendErr)
+      }
+    }
+
+    // 6. Trigger Supabase native signInWithOtp (sends email via Supabase's mail service)
+    try {
+      const { error: sbError } = await supabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          shouldCreateUser: true,
+        },
+      })
+      if (!sbError) {
+        emailDispatched = true
+      } else {
+        console.warn("[send-otp] Supabase native signInWithOtp note:", sbError.message)
+      }
+    } catch (e: any) {
+      console.warn("[send-otp] Supabase signInWithOtp exception:", e?.message)
+    }
+
+    console.log(`[send-otp] Dispatched 6-digit OTP for ${cleanEmail} (email sent: ${emailDispatched})`)
+
+    // NEVER return otpCode to the client!
     return NextResponse.json({
       success: true,
-      message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox and spam folder.`,
+      message: `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox and spam folder.`,
       email: cleanEmail,
-      otpCode: otpCode,
-      emailSent: supabaseAuthDispatched,
-      supabaseDispatched: supabaseAuthDispatched
+      emailSent: emailDispatched,
     })
   } catch (err: any) {
     console.error("[send-otp] Unexpected error:", err)

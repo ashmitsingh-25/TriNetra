@@ -104,9 +104,11 @@ export default function TinyFishCrawlerTab() {
         setPageTitle(urlData.pageTitle || "Web Page")
         setServerHost(urlData.serverHost || "Web Host")
         setIsPhishing(urlData.isPhishing)
-        setRiskScore(urlData.isPhishing ? 96 : 8)
+        setRiskScore(urlData.riskScore ?? (urlData.isPhishing ? 96 : 8))
 
-        if (urlData.detectedTraps && urlData.detectedTraps.length > 0) {
+        if (urlData.dangerousInputs && urlData.dangerousInputs.length > 0) {
+          setDetectedTraps(urlData.dangerousInputs)
+        } else if (urlData.detectedTraps && urlData.detectedTraps.length > 0) {
           setDetectedTraps(
             urlData.detectedTraps.map((t: string) => {
               if (t.includes("upi_pin")) return "Asks for confidential 6-digit UPI PIN"

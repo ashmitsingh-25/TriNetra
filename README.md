@@ -2,12 +2,21 @@
 
 > **Tagline:** *Stop UPI scams before payment. Detect new scam waves before they spread.*
 
-[![Built for 24h Hackathon](https://img.shields.io/badge/Hackathon-24h%20Sprint-ff2a8d.svg)](https://github.com/siraman/trinetra)
+[![Live Production Website](https://img.shields.io/badge/Live%20Website-trinetra--chi--mauve.vercel.app-ff2a8d?style=for-the-badge&logo=vercel&logoColor=white)](https://trinetra-chi-mauve.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-TriNetra-181717?style=for-the-badge&logo=github)](https://github.com/ashmitsingh-25/TriNetra)
+
 [![Next.js](https://img.shields.io/badge/Next.js-16.4-white.svg)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8.svg)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6.svg)](https://www.typescriptlang.org/)
-[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-Structure-black.svg)](https://ui.shadcn.com/)
+[![Supabase Active](https://img.shields.io/badge/Supabase-Live%20Postgres-3ecf8e.svg)](https://supabase.com/)
 [![TinyFish MCP](https://img.shields.io/badge/TinyFish-Live%20Web%20AI-e5ff40.svg)](https://docs.tinyfish.ai/)
+
+---
+
+### 🌐 Live Production Deployment
+> 🚀 **Live Demo URL:** **[https://trinetra-chi-mauve.vercel.app](https://trinetra-chi-mauve.vercel.app)**  
+> 🛡️ **Status:** `100% Functional • Live Supabase Connected • Production Ready`  
+> ⚡ **Direct Access:** Visitors can explore the live scanner, test URLs with TinyFish, inspect transaction waves, or test fraud analyst actions directly on the live platform.
 
 ---
 

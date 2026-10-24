@@ -26,37 +26,56 @@ export default function SplineScene({ sceneUrl, className = "" }: SplineScenePro
 
   // Remove any unwanted UI overlays, "Get in touch" buttons, and "Built with Spline" watermarks
   useEffect(() => {
-    const sanitizeSplineDOM = () => {
-      if (!containerRef.current) return
-
-      // Find any anchor tags or buttons inside the spline container
-      const allElements = containerRef.current.querySelectorAll("a, button, div, span, p, img")
-      allElements.forEach((el) => {
-        const text = (el.textContent || "").trim().toLowerCase()
-        const href = ((el as HTMLAnchorElement).href || "").toLowerCase()
-        const id = (el.id || "").toLowerCase()
-        const classNameStr = (el.className || "").toString().toLowerCase()
-
+    const removeSplineBadge = () => {
+      // 1. Remove any standard DOM links or badges pointing to spline
+      document.querySelectorAll('a[href*="spline"], div').forEach((el) => {
         if (
-          text.includes("get in touch") ||
-          text.includes("built with spline") ||
-          href.includes("spline.design") ||
-          id.includes("spline-watermark") ||
-          classNameStr.includes("spline-watermark") ||
-          classNameStr.includes("watermark")
+          el.textContent?.trim() === "Built with Spline" || 
+          (el as HTMLAnchorElement).href?.includes("spline.design") ||
+          (el as HTMLAnchorElement).href?.includes("spline")
         ) {
-          const htmlEl = el as HTMLElement
-          htmlEl.style.setProperty("display", "none", "important")
-          htmlEl.style.setProperty("opacity", "0", "important")
-          htmlEl.style.setProperty("visibility", "hidden", "important")
-          htmlEl.style.setProperty("pointer-events", "none", "important")
+          el.remove()
         }
       })
+      // 2. Pierce any <spline-viewer> Shadow DOM and remove #logo
+      document.querySelectorAll("spline-viewer").forEach((viewer) => {
+        const shadow = (viewer as HTMLElement & { shadowRoot?: ShadowRoot }).shadowRoot
+        if (shadow) {
+          const logo = shadow.querySelector("#logo, a[href*='spline']")
+          if (logo) logo.remove()
+        }
+      })
+      // 3. Fallback for inner container elements
+      if (containerRef.current) {
+        containerRef.current.querySelectorAll("a, button, div, span, p, img").forEach((el) => {
+          const text = (el.textContent || "").trim().toLowerCase()
+          const href = ((el as HTMLAnchorElement).href || "").toLowerCase()
+          const id = (el.id || "").toLowerCase()
+          const classNameStr = (el.className || "").toString().toLowerCase()
+
+          if (
+            text.includes("built with spline") ||
+            text.includes("get in touch") ||
+            href.includes("spline.design") ||
+            id.includes("spline-watermark") ||
+            classNameStr.includes("spline-watermark") ||
+            classNameStr.includes("watermark")
+          ) {
+            el.remove()
+          }
+        })
+      }
     }
 
-    sanitizeSplineDOM()
-    const interval = setInterval(sanitizeSplineDOM, 250)
-    return () => clearInterval(interval)
+    removeSplineBadge()
+    const observer = new MutationObserver(removeSplineBadge)
+    observer.observe(document.body, { childList: true, subtree: true })
+    const interval = setInterval(removeSplineBadge, 300)
+
+    return () => {
+      observer.disconnect()
+      clearInterval(interval)
+    }
   }, [])
 
   // Global cursor follow forwarding:

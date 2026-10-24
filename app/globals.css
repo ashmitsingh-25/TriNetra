@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Permanently suppress Spline logo & watermark */
+a[href*="spline.design"],
+a[href*="spline"],
+div[class*="spline-watermark"],
+#logo,
+spline-viewer::part(logo) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}

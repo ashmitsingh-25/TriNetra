@@ -2,6 +2,9 @@
 
 This checklist serves as the operational roadmap for the 24-hour sprint, tracking deliverables across all 4 modules, the hero page, and each team member's role.
 
+> 🌐 **Live Website:** **[https://trinetra-chi-mauve.vercel.app](https://trinetra-chi-mauve.vercel.app)**  
+> 📦 **GitHub Repository:** **[https://github.com/ashmitsingh-25/TriNetra](https://github.com/ashmitsingh-25/TriNetra)**
+
 ---
 
 ## 🕒 Master 24-Hour Timeline Tracker
