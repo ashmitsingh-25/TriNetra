@@ -178,13 +178,6 @@ export default function DashboardHeader({
 
         {/* Right Action Cluster */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Defense Active Status Pill */}
-          <div className="hidden md:flex items-center gap-2 rounded-full border border-white/10 bg-[#1c1b1d] px-3.5 py-1.5 shadow-[0_0_12px_rgba(217,242,50,0.15)]">
-            <span className="h-2 w-2 rounded-full bg-[#d6ef2f] animate-pulse" />
-            <span className="font-mono text-[11px] font-bold tracking-widest text-[#d6ef2f] uppercase">
-              DEFENSE ACTIVE · 0ms
-            </span>
-          </div>
 
           {/* User Session Controller */}
           {currentUser ? (

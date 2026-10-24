@@ -162,6 +162,28 @@ export async function POST(req: NextRequest) {
     const handleLocal = cleanedVpa.split("@")[0] || ""
     const is10DigitPhone = /^\d{10}$/.test(handleLocal)
 
+    // CHECK 0: Supabase Threat Blacklist Lookup
+    let isBlacklisted = false
+    if (cleanedVpa) {
+      try {
+        const { data: blacklistedVpa } = await supabase
+          .from("vpa_blacklist")
+          .select("vpa, reason")
+          .eq("vpa", cleanedVpa)
+          .maybeSingle()
+
+        if (blacklistedVpa) {
+          isBlacklisted = true
+          qrMismatchScore = 100
+          mismatchFound = true
+          mismatchCode = "BLACKLISTED_FRAUD_VPA"
+          mismatchDetails = `CONFIRMED SCAM: '${actualVpa}' is blacklisted in TriNETRA threat database (${blacklistedVpa.reason || "Confirmed Fraudulent"}).`
+        }
+      } catch (e) {
+        console.warn("Blacklist lookup note:", e)
+      }
+    }
+
     // CHECK 1: Claimed Name vs. Embedded QR `pn`
     let pnSimilarity = 1.0
     if (cleanedPn.length > 0 && cleanedClaimed.length > 0) {
@@ -265,7 +287,8 @@ export async function POST(req: NextRequest) {
       behaviorPoints = Math.max(behaviorPoints, 48.0)
     }
 
-    const compositeScore = Math.min(100, Math.round(behaviorPoints + nlpPoints + urlPoints + mismatchPoints))
+    const rawComposite = Math.min(100, Math.round(behaviorPoints + nlpPoints + urlPoints + mismatchPoints))
+    const compositeScore = isBlacklisted ? 100 : rawComposite
     const riskTier = compositeScore >= 66 ? "HIGH" : compositeScore >= 31 ? "MEDIUM" : "LOW"
 
     // Cross-page live sync to Page 3 HDBSCAN cluster registry & Page 4 Supabase Realtime Queue
