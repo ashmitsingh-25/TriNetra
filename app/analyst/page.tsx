@@ -55,7 +55,7 @@ export default function AnalystPage() {
         aria-hidden="true" 
         className="pointer-events-none select-none absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11vw] font-black uppercase tracking-tighter text-white opacity-[0.03] z-0 leading-none"
       >
-        त्रिNETRA // WAR ROOM
+        त्रिNETRA // ANALYST HUB
       </div>
 
       {/* ─── TOP NAVIGATION HEADER WITH 3-LINE HAMBURGER TRIGGER ─── */}

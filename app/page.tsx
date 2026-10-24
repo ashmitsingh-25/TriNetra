@@ -234,18 +234,17 @@ export default function Home() {
                 <span>Next-Gen Pre-Payment Cyber Defense Grid</span>
               </div>
               <span className="hidden sm:inline text-zinc-600">|</span>
-              <span className="font-mono text-[11px] text-zinc-400">
-                Zero-Trust UPI Routing &bull; NPCI Layer Forensics &bull; TinyFish Honeypots
+              <span className="text-[11px] text-zinc-400">
+                Pre-Payment UPI Verification &bull; Powered by TinyFish Web Crawler
               </span>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] font-mono text-zinc-400">
               <span className="flex items-center gap-1.5 text-[#e5ff40]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#e5ff40] animate-pulse" />
-                SLA &lt;140ms
+                <span className="h-1.5 w-1.5 rounded-full bg-[#e5ff40]" />
+                Live Protection Active
               </span>
-              <span>I4C / CFCFRS 1930 Active</span>
-              <span>SHA-256 Vector Privacy</span>
+              <span>1930 Cybercrime Portal Support</span>
               <span className="text-[#ff2a8d] font-bold">
                 Active Session: {currentUser.phone}
               </span>

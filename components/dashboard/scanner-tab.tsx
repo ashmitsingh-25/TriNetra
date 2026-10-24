@@ -22,7 +22,7 @@ import {
   BadgeAlert
 } from "lucide-react"
 
-type InputTab = "qr" | "sms" | "url"
+type InputTab = "qr" | "sms"
 
 interface AnalysisResult {
   score: number
@@ -491,20 +491,6 @@ export default function ScannerTab({ onExploreArchitecture, onOpenAuthGate, curr
             >
               SMS / WhatsApp
             </button>
-            <button
-              onClick={() => {
-                setActiveTab("url")
-                setActiveSampleName(null)
-                resetInspectionCards()
-              }}
-              className={`px-4 py-2 rounded-full font-mono text-xs font-bold transition-all ${
-                activeTab === "url"
-                  ? "bg-[#ff2a8d] text-white shadow-[0_0_15px_rgba(255,42,141,0.35)]"
-                  : "text-neutral-400 hover:text-white hover:bg-white/[0.05]"
-              }`}
-            >
-              Website Link
-            </button>
           </div>
 
           {/* Input Workspace Body */}
@@ -568,25 +554,6 @@ export default function ScannerTab({ onExploreArchitecture, onOpenAuthGate, curr
               </div>
             )}
 
-            {/* Website Link Tab */}
-            {activeTab === "url" && (
-              <div className="space-y-2">
-                <label className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-400">
-                  Suspect Payment or Portal Link
-                </label>
-                <input
-                  type="text"
-                  value={phishingUrl}
-                  onChange={(e) => {
-                    setPhishingUrl(e.target.value)
-                    setActiveSampleName(null)
-                    resetInspectionCards()
-                  }}
-                  className="w-full border border-white/10 bg-black/40 backdrop-blur-[2px] p-3 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-[#ff2a8d] transition-colors font-sans"
-                  placeholder="https://..."
-                />
-              </div>
-            )}
 
             {/* Claimed Recipient Field */}
             <div className="space-y-2">

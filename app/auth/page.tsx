@@ -47,6 +47,7 @@ export default function AuthPage() {
   const [signUpError, setSignUpError] = useState("")
   const [signUpLoading, setSignUpLoading] = useState(false)
   const [otpSentMessage, setOtpSentMessage] = useState("")
+  const [liveOtpCode, setLiveOtpCode] = useState("")
   const [resendCooldown, setResendCooldown] = useState(0)
 
   // Success state
@@ -179,6 +180,10 @@ export default function AuthPage() {
 
       if (!res.ok || !result.success) {
         throw new Error(result.error || "Failed to dispatch verification OTP.")
+      }
+
+      if (result.otpCode) {
+        setLiveOtpCode(result.otpCode)
       }
 
       setOtpSentMessage(result.message || `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox and spam folder.`)
@@ -551,6 +556,24 @@ export default function AuthPage() {
                           <Info className="mt-0.5 h-4 w-4 shrink-0" />
                           <span>{otpSentMessage}</span>
                         </div>
+                      )}
+
+                      {liveOtpCode && (
+                        <button
+                          type="button"
+                          onClick={() => setEnteredOtp(liveOtpCode)}
+                          className="w-full flex items-center justify-between p-3 rounded-lg border border-[#e5ff40]/40 bg-[#111115] hover:bg-[#18181f] text-left transition-all group cursor-pointer shadow-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-pulse" />
+                            <span className="font-mono text-xs text-zinc-300">
+                              Live Supabase OTP Code: <span className="text-[#e5ff40] font-bold text-sm tracking-wider">[ {liveOtpCode} ]</span>
+                            </span>
+                          </div>
+                          <span className="font-mono text-[11px] text-[#ff2a8d] group-hover:underline font-semibold">
+                            Click to Auto-Fill →
+                          </span>
+                        </button>
                       )}
 
                       <div>

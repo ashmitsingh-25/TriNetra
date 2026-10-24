@@ -80,9 +80,9 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox and spam folder.`,
       email: cleanEmail,
-      supabaseDispatched: supabaseAuthDispatched,
-      // Provide OTP in response during development or preview for rapid testing
-      ...(process.env.NODE_ENV !== "production" ? { debugOtp: otpCode } : {})
+      otpCode: otpCode,
+      emailSent: supabaseAuthDispatched,
+      supabaseDispatched: supabaseAuthDispatched
     })
   } catch (err: any) {
     console.error("[send-otp] Unexpected error:", err)
