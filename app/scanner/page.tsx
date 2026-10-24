@@ -30,7 +30,10 @@ import {
   Menu,
   X,
   Scan,
-  Activity
+  Activity,
+  ImageIcon,
+  UploadCloud,
+  Trash2
 } from "lucide-react"
 
 type InputTab = "qr" | "sms"
@@ -132,6 +135,14 @@ const PRESETS = [
   }
 ]
 
+interface UploadedQRImage {
+  dataUrl: string
+  fileName: string
+  fileSize: string
+  status: "decoding" | "success" | "error"
+  errorMessage?: string
+}
+
 export default function ScannerPage() {
   const [activeTab, setActiveTab] = useState<InputTab>("qr")
   const [presetIndex, setPresetIndex] = useState(0)
@@ -140,6 +151,7 @@ export default function ScannerPage() {
   const [copied, setCopied] = useState(false)
   const [telemetryExpanded, setTelemetryExpanded] = useState(true)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadedImage, setUploadedImage] = useState<UploadedQRImage | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -307,32 +319,66 @@ export default function ScannerPage() {
   // Real Client-Side QR Image Decoder with jsQR
   const handleQrFileUpload = (file: File) => {
     if (!file) return
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = e.target?.result as string
       if (!result) return
+
+      setUploadedImage({
+        dataUrl: result,
+        fileName: file.name,
+        fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+        status: "decoding"
+      })
+
       const img = new window.Image()
       img.onload = () => {
-        const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
-        if (!ctx) return
-        canvas.width = img.width
-        canvas.height = img.height
-        ctx.drawImage(img, 0, 0, img.width, img.height)
-        const imageData = ctx.getImageData(0, 0, img.width, img.height)
-        const code = jsQR(imageData.data, imageData.width, imageData.height)
+        try {
+          const canvas = document.createElement("canvas")
+          const ctx = canvas.getContext("2d")
+          if (!ctx) {
+            setUploadedImage(prev => prev ? { ...prev, status: "error", errorMessage: "Failed to initialize canvas context" } : null)
+            return
+          }
+          canvas.width = img.width
+          canvas.height = img.height
+          ctx.drawImage(img, 0, 0, img.width, img.height)
+          const imageData = ctx.getImageData(0, 0, img.width, img.height)
+          const code = jsQR(imageData.data, imageData.width, imageData.height)
 
-        if (code && code.data) {
-          const completeRawUri = code.data // Full unstripped string
-          setRawUpiUri(completeRawUri)
-          setActiveSampleName(null) // IMMEDIATELY CLEAR STALE PRESET
-          resetInspectionCards()
-          updateUriParams(completeRawUri)
-          // Run fresh analysis with newly decoded QR
-          executePipeline(completeRawUri, claimedRecipient, messageText, phishingUrl)
-        } else {
-          alert("Could not detect a clear QR code in this image. Please ensure the QR code is clearly visible or paste the raw UPI URI.")
+          if (code && code.data) {
+            const completeRawUri = code.data // Full unstripped string
+            setRawUpiUri(completeRawUri)
+            setActiveSampleName(null) // IMMEDIATELY CLEAR STALE PRESET
+            resetInspectionCards()
+            updateUriParams(completeRawUri)
+            setUploadedImage(prev => prev ? { ...prev, status: "success" } : null)
+            // Run fresh analysis with newly decoded QR
+            executePipeline(completeRawUri, claimedRecipient, messageText, phishingUrl)
+          } else {
+            setUploadedImage(prev => prev ? {
+              ...prev,
+              status: "error",
+              errorMessage: "Could not detect a clear QR code pattern. Please ensure the QR is fully visible."
+            } : null)
+          }
+        } catch (err: any) {
+          setUploadedImage(prev => prev ? {
+            ...prev,
+            status: "error",
+            errorMessage: err?.message || "Failed to process image."
+          } : null)
         }
+      }
+      img.onerror = () => {
+        setUploadedImage(prev => prev ? {
+          ...prev,
+          status: "error",
+          errorMessage: "Failed to load image file."
+        } : null)
       }
       img.src = result
     }
@@ -448,6 +494,7 @@ export default function ScannerPage() {
     setPresetIndex(nextIndex)
     const p = PRESETS[nextIndex]
     setActiveSampleName(p.name)
+    setUploadedImage(null)
     setRawUpiUri(p.rawUpiUri)
     setClaimedRecipient(p.claimedRecipient)
     setMessageText(p.messageText)
@@ -658,6 +705,7 @@ export default function ScannerPage() {
                         }
                       }}
                     />
+                  {!uploadedImage ? (
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       onDragOver={(e) => e.preventDefault()}
@@ -667,7 +715,7 @@ export default function ScannerPage() {
                           handleQrFileUpload(e.dataTransfer.files[0])
                         }
                       }}
-                      className="border border-dashed border-white/10 bg-black/40 backdrop-blur-[2px] hover:border-[#ff2a8d]/50 hover:bg-white/[0.04] p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-2 group"
+                      className="border border-dashed border-white/10 bg-black/40 backdrop-blur-[2px] hover:border-[#ff2a8d]/50 hover:bg-white/[0.04] p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-2 group rounded-xl"
                     >
                       <div className="h-10 w-10 rounded-full bg-white/[0.04] flex items-center justify-center text-neutral-400 group-hover:text-[#ff2a8d] transition-colors">
                         <QrCode className="h-5 w-5" />
@@ -679,8 +727,96 @@ export default function ScannerPage() {
                         Full raw URI extracted with parameters intact (&amp;pn=, &amp;am=, &amp;tn=, &amp;mc=, &amp;sign=)
                       </p>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div 
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleQrFileUpload(e.dataTransfer.files[0])
+                        }
+                      }}
+                      className="relative overflow-hidden rounded-xl border border-white/15 bg-black/60 p-4 backdrop-blur-md transition-all shadow-xl hover:border-[#ff2a8d]/40"
+                    >
+                      <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        {/* Image Thumbnail Container */}
+                        <div className="relative group/thumb flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-white/15 bg-zinc-950 flex items-center justify-center shadow-inner">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={uploadedImage.dataUrl}
+                            alt="Uploaded QR Code Screenshot"
+                            className="w-full h-full object-contain transition-transform duration-300 group-hover/thumb:scale-105"
+                          />
+                          <div className="pointer-events-none absolute inset-0 border border-[#ff2a8d]/20 rounded-lg" />
+                        </div>
+
+                        {/* Metadata & Status */}
+                        <div className="flex-1 min-w-0 w-full space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ImageIcon className="h-4 w-4 text-[#ff2a8d] flex-shrink-0" />
+                              <span className="text-sm font-medium text-white truncate" title={uploadedImage.fileName}>
+                                {uploadedImage.fileName}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-mono text-neutral-400 bg-white/5 px-2 py-0.5 rounded border border-white/10 flex-shrink-0">
+                              {uploadedImage.fileSize}
+                            </span>
+                          </div>
+
+                          {/* Decoding Status Badges */}
+                          {uploadedImage.status === "decoding" && (
+                            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-md">
+                              <RefreshCw className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+                              <span>Decoding QR payload with jsQR engine...</span>
+                            </div>
+                          )}
+
+                          {uploadedImage.status === "success" && (
+                            <div className="flex items-center gap-2 text-xs text-[#e5ff40] bg-[#e5ff40]/10 border border-[#e5ff40]/25 px-2.5 py-1.5 rounded-md">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-[#e5ff40] flex-shrink-0" />
+                              <span className="truncate font-mono">Decoded &amp; Forensically Extracted</span>
+                            </div>
+                          )}
+
+                          {uploadedImage.status === "error" && (
+                            <div className="flex items-center gap-2 text-xs text-[#ff2a8d] bg-[#ff2a8d]/10 border border-[#ff2a8d]/25 px-2.5 py-1.5 rounded-md">
+                              <AlertTriangle className="h-3.5 w-3.5 text-[#ff2a8d] flex-shrink-0" />
+                              <span className="truncate">{uploadedImage.errorMessage || "Could not detect clear QR."}</span>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-mono font-medium text-neutral-200 transition-colors hover:bg-white/10 hover:text-white hover:border-[#ff2a8d]/40"
+                            >
+                              <UploadCloud className="h-3.5 w-3.5 text-[#ff2a8d]" />
+                              <span>Replace QR</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUploadedImage(null)
+                                if (fileInputRef.current) {
+                                  fileInputRef.current.value = ""
+                                }
+                              }}
+                              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-xs font-mono text-neutral-400 transition-colors hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Remove Photo</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
                 {/* SMS / WhatsApp Tab */}
                 {activeTab === "sms" && (
