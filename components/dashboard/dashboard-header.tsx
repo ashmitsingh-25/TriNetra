@@ -36,7 +36,6 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
 
   const tabs: { key: TabKey; label: string; icon: any; isProtected: boolean }[] = [
-    { key: "overview", label: "Hero & Story", icon: Sparkles, isProtected: false },
     { key: "scanner", label: "Scanner", icon: ScanLine, isProtected: false },
     { key: "tinyfish", label: "TinyFish Intel", icon: Globe, isProtected: true },
     { key: "transaction-dna", label: "Transaction DNA", icon: Activity, isProtected: true },
