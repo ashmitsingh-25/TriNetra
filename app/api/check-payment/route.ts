@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { campaignsStore } from "@/lib/campaigns-store"
 
 // Known verified corporate brands allowlist & official patterns
 const VERIFIED_BRANDS: Record<string, { officialVpas: string[]; officialDomains: string[]; category: string }> = {
@@ -265,6 +266,20 @@ export async function POST(req: NextRequest) {
 
     const compositeScore = Math.min(100, Math.round(behaviorPoints + nlpPoints + urlPoints + mismatchPoints))
     const riskTier = compositeScore >= 66 ? "HIGH" : compositeScore >= 31 ? "MEDIUM" : "LOW"
+
+    // Cross-page live sync to Page 3 HDBSCAN cluster registry
+    if (compositeScore >= 66 && actualVpa) {
+      try {
+        campaignsStore.addFlaggedPayment(
+          actualVpa,
+          claimedRecipient || "",
+          compositeScore,
+          mismatchDetails || "High threat recipient discrepancy detected."
+        )
+      } catch (e) {
+        console.error("Live campaign sync error:", e)
+      }
+    }
 
     return NextResponse.json({
       success: true,
