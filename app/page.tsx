@@ -5,7 +5,7 @@ import Link from "next/link"
 import DashboardHeader, { TabKey } from "@/components/dashboard/dashboard-header"
 import AuthGateModal from "@/components/dashboard/auth-gate-modal"
 import SculptureHero from "@/components/ui/liquid-sculpture-hero"
-import KineticLogoSection from "@/components/ui/kinetic-logo-section"
+import StorytellingSection from "@/components/ui/storytelling-section"
 import ScannerTab from "@/components/dashboard/scanner-tab"
 import TinyFishCrawlerTab from "@/components/dashboard/tinyfish-crawler-tab"
 import TransactionDnaTab from "@/components/dashboard/transaction-dna-tab"
@@ -140,7 +140,7 @@ export default function Home() {
             headline={"Stop UPI scams before payment.\nDetect scam waves before they spread."}
             headlineAccent="before they spread."
             body="Real-time UPI recipient forensic verification, QR payload decoding, and autonomous TinyFish web agents scanning the live internet for emerging phishing campaigns."
-            primaryCta={{ label: "Kinetic Sentinel Grid", href: "#kinetic-grid" }}
+            primaryCta={{ label: "Explore Architecture", href: "#story" }}
             secondaryCta={
               currentUser 
                 ? { label: "Go to Scanner Tabs", href: "/?tab=scanner" }
@@ -189,13 +189,14 @@ export default function Home() {
           />
 
           {/* 
-            Second Section: TriNetra Mystical Logo seamlessly blended into the interactive KineticGrid
-            Cursor-warping mathematical grid with click ripples, replacing the old storytelling section
+            Second Page: Cinematic Scroll-Driven Storytelling Section Showing Architecture
+            Pure black background (#000000) with expanding mystical eye emblem,
+            revealing TriNETRA's 4 Architectural Pillars as the user scrolls.
           */}
-          <KineticLogoSection 
-            id="kinetic-grid" 
+          <StorytellingSection 
+            id="story" 
             currentUser={currentUser} 
-            onOpenScanner={() => handleSelectTab("scanner")} 
+            onOpenPortal={(tab) => handleSelectTab((tab as TabKey) || "scanner")} 
           />
 
           {/* Bottom Fast Action Console */}
