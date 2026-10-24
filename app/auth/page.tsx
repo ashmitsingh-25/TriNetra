@@ -87,9 +87,9 @@ export default function AuthPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("trinetra_user", JSON.stringify(user))
     }
-    // Redirect to the storytelling page as requested
+    // Redirect directly to the scanner page and dashboard tabs
     setTimeout(() => {
-      router.push("/#story")
+      router.push("/?tab=scanner")
     }, 1200)
   }
 

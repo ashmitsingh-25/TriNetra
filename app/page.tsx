@@ -28,18 +28,30 @@ export default function Home() {
   const [authGateOpen, setAuthGateOpen] = useState(false)
   const [gateTargetTab, setGateTargetTab] = useState<string>("Intel")
 
-  // Sync user session from localStorage or Supabase
+  // Sync user session from localStorage and handle redirect after login
   useEffect(() => {
     if (typeof window !== "undefined") {
+      let loggedInUser = null
       const stored = localStorage.getItem("trinetra_user")
       if (stored) {
         try {
-          const parsed = JSON.parse(stored)
-          setCurrentUser(parsed)
-          // If already authenticated and visiting, optionally default to scanner or stay on overview
+          loggedInUser = JSON.parse(stored)
+          setCurrentUser(loggedInUser)
         } catch {
           // ignore parsing error
         }
+      }
+
+      // Check URL query parameter (e.g. /?tab=scanner)
+      const params = new URLSearchParams(window.location.search)
+      const tabParam = params.get("tab") as TabKey | null
+      const validTabs: TabKey[] = ["overview", "scanner", "tinyfish", "transaction-dna", "analyst-portal", "architecture"]
+
+      if (tabParam && validTabs.includes(tabParam)) {
+        setActiveTab(tabParam)
+      } else if (loggedInUser) {
+        // After login on landing page, redirect directly to scanner page & other tabs!
+        setActiveTab("scanner")
       }
     }
   }, [])
@@ -47,6 +59,10 @@ export default function Home() {
   const handleSignOut = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("trinetra_user")
+      // Remove query param if present
+      const url = new URL(window.location.href)
+      url.searchParams.delete("tab")
+      window.history.replaceState({}, "", url.toString())
     }
     setCurrentUser(null)
     setActiveTab("overview")
@@ -73,91 +89,104 @@ export default function Home() {
     }
     setActiveTab(tab)
     if (typeof window !== "undefined") {
+      // Update query param cleanly without full reload
+      const url = new URL(window.location.href)
+      if (tab === "overview") {
+        url.searchParams.delete("tab")
+      } else {
+        url.searchParams.set("tab", tab)
+      }
+      window.history.replaceState({}, "", url.toString())
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
   }
 
   return (
     <div className="min-h-screen bg-[#000000] text-[#ededed] antialiased selection:bg-[#ff2a8d] selection:text-white">
-      {/* Universal Dashboard Navigation Bar */}
-      <DashboardHeader
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        currentUser={currentUser}
-        onSignOut={handleSignOut}
-        onOpenAuthGate={handleOpenAuthGate}
-      />
+      
+      {/* 
+        Dashboard Navigation Bar:
+        ONLY displayed when browsing dashboard tabs (scanner, tinyfish, transaction-dna, analyst-portal, architecture).
+        COMPLETELY REMOVED from the landing page overview/hero to keep the hero page clean, as requested!
+      */}
+      {activeTab !== "overview" && (
+        <DashboardHeader
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          currentUser={currentUser}
+          onSignOut={handleSignOut}
+          onOpenAuthGate={handleOpenAuthGate}
+        />
+      )}
 
-      {/* ─── TAB 1: OVERVIEW (HERO PAGE + ARCHITECTURE IN STORYTELLING MODE) ─── */}
+      {/* ─── LANDING PAGE: ANIMATED HERO + ARCHITECTURE IN STORYTELLING MODE (NO HEADER BAR) ─── */}
       {activeTab === "overview" && (
         <main className="w-full">
           {/* 
-            FLORIA Liquid Particle Hero (Preserved with Jet Black #050505, Hot Pink #ff2a8d & Chartreuse #e5ff40)
-            Interactive WebGL2 GPGPU particles with live cursor tracking
+            FLORIA Liquid Particle Hero (Clean full-screen, no header bar overlay)
+            Features interactive WebGL2 GPGPU particles and native clean nav
           */}
-          <div className="pt-20">
-            <SculptureHero
-              src="/assets/trinetra-logo.png"
-              darkSrc="/assets/trinetra-logo.png"
-              background="#050505"
-              darkBackground="#050505"
-              textColor="#e5ff40"
-              accentColor="#ff2a8d"
-              particleColor="#ff2a8d"
-              backdropText="त्रिNETRA"
-              brand="त्रिNETRA"
-              eyebrow="AI-POWERED UPI FRAUD PREVENTION & SCAM INTELLIGENCE"
-              headline={"Stop UPI scams before payment.\nDetect scam waves before they spread."}
-              headlineAccent="before they spread."
-              body="Real-time UPI recipient forensic verification, QR payload decoding, and autonomous TinyFish web agents scanning the live internet for emerging phishing campaigns."
-              primaryCta={{ label: "Explore Architecture", href: "#story" }}
-              secondaryCta={
-                currentUser 
-                  ? { label: "Open Sentinel Tabs", href: "#portal-jump" }
-                  : { label: "Sign In / Register", href: "/auth" }
-              }
-              interactive={true}
-              strength={1.3}
-              radius={240}
-              speed={1.2}
-              liquid={1.4}
-              turbulence={1.3}
-              customNavRight={
-                <div className="flex items-center gap-3">
-                  {currentUser ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleSelectTab("scanner")}
-                        className="flex items-center gap-1.5 rounded-full border border-[#ff2a8d]/40 bg-[#ff2a8d]/10 px-3.5 py-1.5 text-xs font-bold text-[#ffb1c7] shadow-[0_0_15px_rgba(255,42,141,0.25)] hover:scale-105 transition-all"
-                      >
-                        <LayoutDashboard className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                        <span>Open Webpages</span>
-                      </button>
-                      <div className="flex items-center gap-1.5 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
-                        <User className="h-3.5 w-3.5" />
-                        <span>{currentUser.phone}</span>
-                      </div>
-                      <button
-                        onClick={handleSignOut}
-                        className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
-                        title="Sign Out"
-                      >
-                        <LogOut className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Link
-                      href="/auth"
-                      className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] px-5 py-2 text-xs font-bold text-white shadow-lg shadow-[#ff2a8d]/30 transition-all hover:scale-105 hover:opacity-95"
+          <SculptureHero
+            src="/assets/trinetra-logo.png"
+            darkSrc="/assets/trinetra-logo.png"
+            background="#050505"
+            darkBackground="#050505"
+            textColor="#e5ff40"
+            accentColor="#ff2a8d"
+            particleColor="#ff2a8d"
+            backdropText="त्रिNETRA"
+            brand="त्रिNETRA"
+            eyebrow="AI-POWERED UPI FRAUD PREVENTION & SCAM INTELLIGENCE"
+            headline={"Stop UPI scams before payment.\nDetect scam waves before they spread."}
+            headlineAccent="before they spread."
+            body="Real-time UPI recipient forensic verification, QR payload decoding, and autonomous TinyFish web agents scanning the live internet for emerging phishing campaigns."
+            primaryCta={{ label: "Explore Architecture", href: "#story" }}
+            secondaryCta={
+              currentUser 
+                ? { label: "Go to Scanner Tabs", href: "/?tab=scanner" }
+                : { label: "Sign In / Register", href: "/auth" }
+            }
+            interactive={true}
+            strength={1.3}
+            radius={240}
+            speed={1.2}
+            liquid={1.4}
+            turbulence={1.3}
+            customNavRight={
+              <div className="flex items-center gap-3">
+                {currentUser ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSelectTab("scanner")}
+                      className="flex items-center gap-1.5 rounded-full border border-[#ff2a8d]/40 bg-[#ff2a8d]/15 px-4 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(255,42,141,0.3)] hover:scale-105 transition-all"
                     >
-                      <KeyRound className="h-3.5 w-3.5" />
-                      <span>Sign In / Sign Up</span>
-                    </Link>
-                  )}
-                </div>
-              }
-            />
-          </div>
+                      <LayoutDashboard className="h-3.5 w-3.5 text-[#ff2a8d]" />
+                      <span>Scanner &amp; Tabs &rarr;</span>
+                    </button>
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
+                      <User className="h-3.5 w-3.5" />
+                      <span>{currentUser.phone}</span>
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                      title="Sign Out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] px-5 py-2 text-xs font-bold text-white shadow-lg shadow-[#ff2a8d]/30 transition-all hover:scale-105 hover:opacity-95"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    <span>Sign In / Sign Up</span>
+                  </Link>
+                )}
+              </div>
+            }
+          />
 
           {/* 
             Second Page: Cinematic Scroll-Driven Storytelling Section Showing Architecture
@@ -170,7 +199,7 @@ export default function Home() {
             onOpenPortal={(tab) => handleSelectTab((tab as TabKey) || "scanner")} 
           />
 
-          {/* Bottom Callout & Fast Tab Switcher */}
+          {/* Bottom Fast Action Console */}
           <div id="portal-jump" className="border-t border-white/10 bg-[#050505] px-4 py-16 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-5xl rounded-3xl border border-[#ff2a8d]/30 bg-gradient-to-br from-[#121214] via-[#0e0e10] to-[#000000] p-8 sm:p-12 shadow-[0_0_50px_rgba(255,42,141,0.15)] text-center space-y-6">
               <span className="inline-flex items-center gap-2 rounded-full border border-[#e5ff40]/30 bg-[#e5ff40]/10 px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest text-[#e5ff40]">
@@ -213,7 +242,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => handleSelectTab("architecture")}
-                  className="rounded-full border border-white/10 bg-black/60 px-6 py-3 font-mono text-xs font-bold uppercase text-white hover:border-[#e5ff40] text-[#e5ff40] transition-all"
+                  className="rounded-full border border-white/10 bg-black/60 px-6 py-3 font-mono text-xs font-bold uppercase text-[#e5ff40] hover:border-[#e5ff40] transition-all"
                 >
                   System Architecture
                 </button>
@@ -223,7 +252,7 @@ export default function Home() {
         </main>
       )}
 
-      {/* ─── TAB 2: SENTINEL SCANNER (SCREEN 1) ─── */}
+      {/* ─── TAB 2: SENTINEL SCANNER (SCREEN 1 - ACTIVE BY DEFAULT AFTER LOGIN) ─── */}
       {activeTab === "scanner" && (
         <main className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28">
           <ScannerTab 
