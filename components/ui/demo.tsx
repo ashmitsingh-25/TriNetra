@@ -1,23 +1,20 @@
-import SculptureHero from "@/components/ui/liquid-sculpture-hero"
+import KineticGrid from "@/components/ui/kinetic-grid";
 
-export default function Demo() {
+export default function Default() {
   return (
-    <SculptureHero
-      src="/assets/trinetra-logo.png"
-      darkSrc="/assets/trinetra-logo.png"
-      background="#050505"
-      darkBackground="#050505"
-      textColor="#e5ff40"
-      accentColor="#ff2a8d"
-      particleColor="#ff2a8d"
-      backdropText="त्रिNETRA"
-      brand="त्रिNETRA"
-      eyebrow="AI-POWERED UPI FRAUD PREVENTION & SCAM INTELLIGENCE"
-      headline={"Stop UPI scams before payment.\nDetect scam waves before they spread."}
-      headlineAccent="before they spread."
-      body="Real-time UPI recipient verification, QR payload forensics, and autonomous TinyFish web agents scanning the live web for phishing campaigns across India."
-      primaryCta={{ label: "Launch Sentinel Scanner", href: "#fraud-check" }}
-      secondaryCta={{ label: "View Live Clusters", href: "#campaigns" }}
-    />
-  )
+    <KineticGrid>
+      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+        <span className="mb-5 rounded-full border border-white/15 px-3 py-1 text-xs font-medium tracking-wide text-white/70">
+          Interactive Background
+        </span>
+        <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+          Move your cursor. Click anywhere.
+        </h1>
+        <p className="mt-4 max-w-md text-base text-white/50">
+          A kinetic grid that warps toward the pointer and ripples on every
+          click.
+        </p>
+      </div>
+    </KineticGrid>
+  );
 }
