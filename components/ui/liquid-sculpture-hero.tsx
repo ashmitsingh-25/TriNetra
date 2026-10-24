@@ -1615,7 +1615,6 @@ export default function SculptureHero(props: SculptureHeroProps) {
         <nav ref={navRef} className="sh-nav" aria-label="Primary">
           <a className="sh-brand" href="#">
             <span className="font-extrabold tracking-tight text-white">त्रिNETRA</span>
-            <span className="sh-brand-badge">UPI Sentinel</span>
           </a>
           {customNavRight ? (
             <div className="flex items-center gap-3">

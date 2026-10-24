@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { 
@@ -13,8 +13,9 @@ import {
   Activity, 
   Globe, 
   Cpu, 
-  ScanLine,
-  Sparkles
+  Scan,
+  Menu,
+  X
 } from "lucide-react"
 
 export type TabKey = "overview" | "scanner" | "tinyfish" | "transaction-dna" | "analyst-portal" | "architecture"
@@ -34,16 +35,44 @@ export default function DashboardHeader({
   onSignOut,
   onOpenAuthGate,
 }: DashboardHeaderProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const tabs: { key: TabKey; label: string; icon: any; isProtected: boolean }[] = [
-    { key: "scanner", label: "Scanner", icon: ScanLine, isProtected: false },
+    { key: "scanner", label: "Scanner", icon: Scan, isProtected: false },
     { key: "tinyfish", label: "TinyFish Intel", icon: Globe, isProtected: true },
     { key: "transaction-dna", label: "Transaction DNA", icon: Activity, isProtected: true },
     { key: "analyst-portal", label: "Analyst Portal", icon: Terminal, isProtected: true },
     { key: "architecture", label: "System Architecture", icon: Cpu, isProtected: false },
   ]
 
+  // Close menu when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("keydown", handleKeyDown)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isOpen])
+
   const handleTabClick = (tab: { key: TabKey; isProtected: boolean }) => {
+    setIsOpen(false)
     if (tab.isProtected && !currentUser) {
       onOpenAuthGate(tab.key)
     } else {
@@ -55,8 +84,78 @@ export default function DashboardHeader({
     <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0e0e10]/90 backdrop-blur-xl shadow-[0_1px_15px_rgba(0,0,0,0.8)]">
       <div className="mx-auto flex h-20 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         
-        {/* Brand & Identity */}
-        <div className="flex items-center gap-6">
+        {/* Left Cluster: 3-Line Hamburger Trigger + Brand Identity */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          
+          {/* Top-Left Rounded-Square 3-Line Trigger Button & Popover */}
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setIsOpen((prev) => !prev)}
+              aria-label="Navigation Menu"
+              aria-expanded={isOpen}
+              className="w-11 h-11 rounded-xl border border-white/15 bg-[#0a0a0c]/80 backdrop-blur-md flex items-center justify-center text-white hover:border-[#ff2a8d]/60 hover:bg-white/[0.04] transition-all cursor-pointer shadow-lg group focus:outline-none focus:ring-1 focus:ring-[#ff2a8d]/50"
+            >
+              {isOpen ? (
+                <X size={18} strokeWidth={1.75} className="text-[#ff2a8d] transition-transform duration-200" />
+              ) : (
+                <Menu size={18} strokeWidth={1.75} className="text-white group-hover:text-[#ff2a8d] transition-colors" />
+              )}
+            </button>
+
+            {/* Popover Menu Dropdown */}
+            {isOpen && (
+              <div 
+                className="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-white/12 bg-[#08080a]/95 backdrop-blur-xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+              >
+                <div className="px-3 py-2 border-b border-white/5 mb-1.5 flex items-center justify-between">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                    Navigation
+                  </span>
+                  <span className="font-mono text-[10px] text-neutral-600">
+                    ESC to close
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  {tabs.map((tab) => {
+                    const isActive = activeTab === tab.key
+                    const isLocked = tab.isProtected && !currentUser
+                    const Icon = tab.icon
+
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => handleTabClick(tab)}
+                        className={`w-full rounded-xl px-3.5 py-2.5 flex items-center justify-between text-sm transition-all text-left ${
+                          isActive
+                            ? "bg-white/[0.06] text-[#ff2a8d] font-semibold shadow-inner"
+                            : "text-neutral-400 hover:text-white hover:bg-white/[0.03] font-medium"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`h-4 w-4 ${isActive ? "text-[#ff2a8d]" : "text-neutral-400"}`} />
+                          <span>{tab.label}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isLocked && (
+                            <span title="Requires Authentication">
+                              <Lock className="h-3 w-3 text-amber-400/80" />
+                            </span>
+                          )}
+                          {isActive && (
+                            <span className="h-2 w-2 rounded-full bg-[#ff2a8d] shadow-[0_0_8px_#ff2a8d]" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Brand & Identity: Clean त्रिNETRA Wordmark without Sentinel UPI badge */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-black/60 p-1 ring-1 ring-white/15 transition-transform group-hover:scale-105">
               <Image
@@ -68,48 +167,14 @@ export default function DashboardHeader({
               />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-white text-lg sm:text-xl">
-                  त्रिNETRA
-                </span>
-                <span className="rounded-full bg-[#ff2a8d] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_10px_rgba(255,42,141,0.5)]">
-                  UPI Sentinel
-                </span>
-              </div>
-              <span className="hidden font-mono text-[10px] tracking-widest text-zinc-400 lg:inline">
+              <span className="font-extrabold tracking-tight text-white text-lg sm:text-xl">
+                त्रिNETRA
+              </span>
+              <span className="hidden font-mono text-[10px] tracking-widest text-zinc-400 sm:inline">
                 CYBER-FRAUD INTELLIGENCE GRID
               </span>
             </div>
           </Link>
-
-          {/* Nav Tabs */}
-          <nav className="hidden xl:flex items-center gap-1.5 rounded-xl bg-black/40 p-1 ring-1 ring-white/10">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key
-              const isLocked = tab.isProtected && !currentUser
-              const Icon = tab.icon
-
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => handleTabClick(tab)}
-                  className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
-                    isActive
-                      ? "bg-[#201f21] text-[#ffb1c7] shadow-inner ring-1 ring-white/10 font-bold"
-                      : "text-zinc-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <Icon className={`h-3.5 w-3.5 ${isActive ? "text-[#ff2a8d]" : "text-zinc-400"}`} />
-                  <span>{tab.label}</span>
-                  {isLocked && (
-                    <span title="Requires Authentication">
-                      <Lock className="h-3 w-3 text-amber-400/80" />
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </nav>
         </div>
 
         {/* Right Action Cluster */}
@@ -147,31 +212,6 @@ export default function DashboardHeader({
             </Link>
           )}
         </div>
-      </div>
-
-      {/* Mobile/Tablet Horizontal Scroll Nav Tabs */}
-      <div className="flex xl:hidden overflow-x-auto border-t border-white/5 bg-black/60 px-4 py-2 scrollbar-none gap-2">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.key
-          const isLocked = tab.isProtected && !currentUser
-          const Icon = tab.icon
-
-          return (
-            <button
-              key={tab.key}
-              onClick={() => handleTabClick(tab)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                isActive
-                  ? "bg-[#ff2a8d]/20 text-[#ffb1c7] ring-1 ring-[#ff2a8d]/40"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              <span>{tab.label}</span>
-              {isLocked && <Lock className="h-2.5 w-2.5 text-amber-400" />}
-            </button>
-          )
-        })}
       </div>
     </header>
   )

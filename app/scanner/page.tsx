@@ -461,9 +461,6 @@ export default function ScannerPage() {
                 <span className="font-extrabold tracking-tight text-white text-lg">
                   त्रिNETRA
                 </span>
-                <span className="bg-[#ff2a8d] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-[0_0_12px_rgba(255,42,141,0.6)]">
-                  UPI SENTINEL
-                </span>
               </div>
             </Link>
 
