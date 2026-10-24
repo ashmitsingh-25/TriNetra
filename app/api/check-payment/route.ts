@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
       behaviorScore = 80
     }
 
-    // 3. NLP Urgency Scoring
+    // 3. NLP Urgency & Python Model Scoring
     let nlpScore = 10
     const flaggedPhrases: string[] = []
     SCAM_TROPES.forEach(trope => {
@@ -265,6 +265,88 @@ export async function POST(req: NextRequest) {
       }
     })
     nlpScore = Math.min(100, Math.max(10, nlpScore))
+    const heuristicNlpScore = nlpScore
+
+    // Direct integration with FastAPI model backend (POST /predict)
+    const modelBase = process.env.MODEL_API_URL || "http://127.0.0.1:8000"
+    const textForModel = (messageText || transactionNote || "").trim()
+
+    let modelAnalysis: {
+      status: "SUCCESS" | "UNAVAILABLE" | "SKIPPED"
+      modelLoaded?: boolean
+      predictedClass?: string
+      classProbabilities?: Record<string, number>
+      fraudProbability?: number | null
+      fraudClass?: string | null
+      score?: number | null
+      riskTier?: string | null
+      labelMappingConfirmed: boolean
+      notice?: string
+      error?: string
+    } = {
+      status: "SKIPPED",
+      labelMappingConfirmed: false
+    }
+
+    let modelFailedOrUnavailable = false
+
+    if (textForModel) {
+      try {
+        const modelRes = await fetch(`${modelBase.replace(/\/$/, "")}/predict`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(process.env.MODEL_API_KEY ? { "X-API-Key": process.env.MODEL_API_KEY } : {})
+          },
+          body: JSON.stringify({ messageText: textForModel.slice(0, 10000) }),
+          signal: AbortSignal.timeout(5000),
+          cache: "no-store"
+        })
+
+        if (modelRes.ok) {
+          const modelData = await modelRes.json()
+          const labelConfirmed = Boolean(modelData.label_mapping_confirmed && modelData.fraud_probability !== null)
+
+          modelAnalysis = {
+            status: "SUCCESS",
+            modelLoaded: true,
+            predictedClass: modelData.predicted_class,
+            classProbabilities: modelData.class_probabilities,
+            fraudProbability: modelData.fraud_probability,
+            fraudClass: modelData.fraud_class,
+            score: modelData.score,
+            riskTier: modelData.riskTier,
+            labelMappingConfirmed: labelConfirmed,
+            notice: labelConfirmed
+              ? modelData.notice
+              : "Classes 0 and 1 semantic meaning is unconfirmed in training code. Class probabilities returned; configure FRAUD_CLASS once verified."
+          }
+
+          if (labelConfirmed && typeof modelData.fraud_probability === "number") {
+            nlpScore = Math.min(100, Math.max(10, Math.round(modelData.fraud_probability * 100)))
+          } else {
+            // Keep heuristic fallback score when semantic labels are unconfirmed
+            nlpScore = heuristicNlpScore
+          }
+        } else {
+          modelFailedOrUnavailable = true
+          modelAnalysis = {
+            status: "UNAVAILABLE",
+            labelMappingConfirmed: false,
+            error: `Model endpoint responded with HTTP ${modelRes.status}`,
+            notice: "Model service returned an error. Do not treat this as a low-risk result."
+          }
+        }
+      } catch (err: any) {
+        modelFailedOrUnavailable = true
+        modelAnalysis = {
+          status: "UNAVAILABLE",
+          labelMappingConfirmed: false,
+          error: err.message || "Model connection error",
+          notice: "Model service unavailable. Do not treat this as a low-risk result."
+        }
+      }
+    }
 
     // 4. Phishing URL Scoring
     let urlScore = 10
@@ -288,8 +370,16 @@ export async function POST(req: NextRequest) {
     }
 
     const rawComposite = Math.min(100, Math.round(behaviorPoints + nlpPoints + urlPoints + mismatchPoints))
-    const compositeScore = isBlacklisted ? 100 : rawComposite
-    const riskTier = compositeScore >= 66 ? "HIGH" : compositeScore >= 31 ? "MEDIUM" : "LOW"
+    let compositeScore = isBlacklisted ? 100 : rawComposite
+    let riskTier = compositeScore >= 66 ? "HIGH" : compositeScore >= 31 ? "MEDIUM" : "LOW"
+
+    // Fail-safe: Model failure or unavailability on unverified input must never default to LOW risk
+    if (modelFailedOrUnavailable && textForModel.length > 0 && riskTier === "LOW") {
+      riskTier = "MEDIUM"
+      if (!mismatchDetails) {
+        mismatchDetails = "Caution: Message analysis model is unavailable. Unverified transaction cannot be classified as low risk."
+      }
+    }
 
     // Cross-page live sync to Page 3 HDBSCAN cluster registry & Page 4 Supabase Realtime Queue
     if (compositeScore >= 66 && actualVpa) {
@@ -376,7 +466,8 @@ export async function POST(req: NextRequest) {
         actualVpa,
         payeeName,
         amount
-      }
+      },
+      modelAnalysis
     })
   } catch (err: any) {
     return NextResponse.json(

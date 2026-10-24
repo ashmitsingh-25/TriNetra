@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: trinetra-model-api
+    runtime: docker
+    healthCheckPath: /health
+    envVars:
+      - key: API_KEY
+        generateValue: true
+      - key: FRAUD_CLASS
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:3000
