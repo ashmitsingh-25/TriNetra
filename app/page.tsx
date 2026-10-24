@@ -2,25 +2,31 @@
 
 import React, { useState } from "react"
 import SculptureHero from "@/components/ui/liquid-sculpture-hero"
+import GenkubRobotScene from "@/components/ui/genkub-robot-scene"
+import AuthModal from "@/components/ui/auth-modal"
+import LoginEntriesModal from "@/components/ui/login-entries-modal"
 import { 
   ShieldAlert, 
   ShieldCheck, 
   QrCode, 
-  Search, 
   Globe, 
   Terminal, 
-  Cpu, 
   Activity, 
   AlertTriangle, 
-  CheckCircle2, 
-  ExternalLink,
-  ChevronRight,
   Database,
   Lock,
-  Eye
+  User,
+  LogOut,
+  Sparkles,
+  KeyRound
 } from "lucide-react"
 
 export default function Home() {
+  // Auth state
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [isDbOpen, setIsDbOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ phone: string; email?: string } | null>(null)
+
   // Interactive prototype state for Module A & B demo
   const [claimedUPI, setClaimedUPI] = useState("electricity.bills@sbi")
   const [actualUPI, setActualUPI] = useState("quickpay.refund992@ybl")
@@ -67,7 +73,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-[#ededed]">
-      {/* Liquid Particle Hero with Center Third Eye Logo */}
+      {/* Liquid Particle Hero with Center Genkub Robot 3D model & Custom Auth Nav */}
       <SculptureHero
         src="/assets/trinetra-logo.png"
         darkSrc="/assets/trinetra-logo.png"
@@ -90,6 +96,73 @@ export default function Home() {
         speed={1.2}
         liquid={1.4}
         turbulence={1.3}
+        centerElement={
+          <div className="relative flex flex-col items-center justify-center">
+            {/* Genkub Greeting Robot 3D Scene */}
+            <div className="h-[380px] w-[380px] sm:h-[460px] sm:w-[460px]">
+              <GenkubRobotScene className="h-full w-full" />
+            </div>
+            {/* Interactive Badge */}
+            <div className="mt-[-20px] flex items-center gap-2 rounded-full border border-[#ff2a8d]/40 bg-black/70 px-4 py-1.5 backdrop-blur-md">
+              <span className="h-2 w-2 animate-ping rounded-full bg-[#ff2a8d]" />
+              <span className="text-xs font-semibold text-[#ff2a8d]">
+                Genkub AI Sentinel • Eye & Head Tracking Active
+              </span>
+            </div>
+          </div>
+        }
+        customNavRight={
+          <div className="flex items-center gap-3">
+            {/* Supabase Live DB Logs Viewer */}
+            <button
+              onClick={() => setIsDbOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3.5 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-[#e5ff40]/40 hover:text-[#e5ff40]"
+            >
+              <Database className="h-3.5 w-3.5 text-[#e5ff40]" />
+              <span className="hidden sm:inline">Supabase</span> DB Logs
+            </button>
+
+            {/* User Auth Tab */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
+                  <User className="h-3.5 w-3.5" />
+                  <span>{currentUser.phone}</span>
+                </div>
+                <button
+                  onClick={() => setCurrentUser(null)}
+                  className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] px-5 py-2 text-xs font-bold text-white shadow-lg shadow-[#ff2a8d]/25 transition-all hover:scale-105 hover:opacity-95"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                <span>Sign In / Sign Up</span>
+              </button>
+            )}
+          </div>
+        }
+      />
+
+      {/* Auth Modal Interface */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={(user) => {
+          setCurrentUser(user)
+        }}
+      />
+
+      {/* Supabase Live DB Entries Modal */}
+      <LoginEntriesModal
+        isOpen={isDbOpen}
+        onClose={() => setIsDbOpen(false)}
       />
 
       {/* Feature Ribbon */}
@@ -323,7 +396,6 @@ export default function Home() {
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {/* Pillar 1 */}
             <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 transition-all hover:border-[#ff2a8d]/40">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#ff2a8d]/20 text-[#ff2a8d]">
                 <QrCode className="h-5 w-5" />
@@ -334,7 +406,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Pillar 2 */}
             <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 transition-all hover:border-[#e5ff40]/40">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5ff40]/20 text-[#e5ff40]">
                 <Globe className="h-5 w-5" />
@@ -345,7 +416,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Pillar 3 */}
             <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 transition-all hover:border-[#ff2a8d]/40">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#ff2a8d]/20 text-[#ff2a8d]">
                 <Activity className="h-5 w-5" />
@@ -356,7 +426,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Pillar 4 */}
             <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 transition-all hover:border-[#e5ff40]/40">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5ff40]/20 text-[#e5ff40]">
                 <Database className="h-5 w-5" />
@@ -374,7 +443,7 @@ export default function Home() {
       <footer className="border-t border-white/10 bg-black px-6 py-8 text-center text-xs text-zinc-500">
         <p>© 2026 त्रिNETRA — AI-Powered UPI Fraud Prevention & Scam Intelligence. Built for 24-Hour Hackathon.</p>
         <p className="mt-2 text-zinc-600">
-          Powered by TinyFish MCP, Next.js, WebGL2 Liquid Particles & FastAPI backend architecture.
+          Powered by Supabase Auth, TinyFish MCP, Three.js Genkub 3D Robot & Next.js.
         </p>
       </footer>
     </main>

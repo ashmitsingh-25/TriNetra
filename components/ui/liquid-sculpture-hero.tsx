@@ -1012,6 +1012,8 @@ export interface SculptureHeroProps {
   brand?: string
   navLinks?: SculptureHeroLink[]
   navCta?: SculptureHeroLink
+  customNavRight?: React.ReactNode
+  centerElement?: React.ReactNode
   showNav?: boolean
 
   eyebrow?: string
@@ -1286,6 +1288,8 @@ export default function SculptureHero(props: SculptureHeroProps) {
     brand = DEFAULTS.brand,
     navLinks = DEFAULTS.navLinks,
     navCta = DEFAULTS.navCta,
+    customNavRight,
+    centerElement,
     showNav = true,
     eyebrow = DEFAULTS.eyebrow,
     headline = DEFAULTS.headline,
@@ -1605,6 +1609,11 @@ export default function SculptureHero(props: SculptureHeroProps) {
       <div ref={stageRef} className="sh-stage" aria-hidden="true">
         <img ref={imgRef} className="sh-fallback" src={activeSrc} alt="" crossOrigin="anonymous" draggable={false} />
       </div>
+      {centerElement ? (
+        <div className="absolute inset-0 z-[1] flex items-center justify-center pointer-events-none">
+          {centerElement}
+        </div>
+      ) : null}
       <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>{imageAlt}</span>
 
       {showNav && (
@@ -1613,34 +1622,40 @@ export default function SculptureHero(props: SculptureHeroProps) {
             <span className="font-extrabold tracking-tight text-white">त्रिNETRA</span>
             <span className="sh-brand-badge">UPI Sentinel</span>
           </a>
-          <ul className="sh-links">
-            {navLinks.map((l, i) => (
-              <li key={i}>
-                <a className="sh-link" href={l.href}>
-                  {l.label}
-                </a>
-              </li>
-            ))}
-            {themeToggle && (
-              <li className="sh-keep">
-                <button
-                  type="button"
-                  className="sh-theme"
-                  aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                  onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
-                >
-                  {mode === "dark" ? <SunIcon /> : <MoonIcon />}
-                </button>
-              </li>
-            )}
-            {navCta && navCta.label && (
-              <li className="sh-keep">
-                <a className="sh-navcta" href={navCta.href}>
-                  {navCta.label}
-                </a>
-              </li>
-            )}
-          </ul>
+          {customNavRight ? (
+            <div className="flex items-center gap-3">
+              {customNavRight}
+            </div>
+          ) : (
+            <ul className="sh-links">
+              {navLinks.map((l, i) => (
+                <li key={i}>
+                  <a className="sh-link" href={l.href}>
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+              {themeToggle && (
+                <li className="sh-keep">
+                  <button
+                    type="button"
+                    className="sh-theme"
+                    aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+                    onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+                  >
+                    {mode === "dark" ? <SunIcon /> : <MoonIcon />}
+                  </button>
+                </li>
+              )}
+              {navCta && navCta.label && (
+                <li className="sh-keep">
+                  <a className="sh-navcta" href={navCta.href}>
+                    {navCta.label}
+                  </a>
+                </li>
+              )}
+            </ul>
+          )}
         </nav>
       )}
 
