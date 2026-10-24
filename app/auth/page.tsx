@@ -319,17 +319,6 @@ export default function AuthPage() {
             className="h-full w-full"
           />
         </div>
-
-        {/* Lower Left Overlay Badge */}
-        <div className="pointer-events-none absolute bottom-6 left-6 z-20 flex flex-col gap-1 rounded-xl border border-white/10 bg-black/60 p-3.5 backdrop-blur-md">
-          <div className="flex items-center gap-2 text-[11px] font-mono tracking-widest text-[#d4af37]">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>INTERACTIVE 3D SENTINEL CORTEX</span>
-          </div>
-          <p className="text-xs text-zinc-400">
-            Cursor-guided spatial intelligence tracking all incoming interaction vectors.
-          </p>
-        </div>
       </div>
 
       {/* ─── RIGHT HALF: LOGIN / SIGNUP INTERFACE ─── */}
