@@ -2,9 +2,7 @@
 
 import React, { useState } from "react"
 import SculptureHero from "@/components/ui/liquid-sculpture-hero"
-import GenkubRobotScene from "@/components/ui/genkub-robot-scene"
 import AuthModal from "@/components/ui/auth-modal"
-import LoginEntriesModal from "@/components/ui/login-entries-modal"
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -13,18 +11,16 @@ import {
   Terminal, 
   Activity, 
   AlertTriangle, 
-  Database,
-  Lock,
-  User,
-  LogOut,
-  Sparkles,
-  KeyRound
+  Lock, 
+  User, 
+  LogOut, 
+  KeyRound,
+  Bot
 } from "lucide-react"
 
 export default function Home() {
   // Auth state
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [isDbOpen, setIsDbOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ phone: string; email?: string } | null>(null)
 
   // Interactive prototype state for Module A & B demo
@@ -73,7 +69,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-[#ededed]">
-      {/* Liquid Particle Hero with Center Genkub Robot 3D model & Custom Auth Nav */}
+      {/* Liquid Particle Hero with Clean Nav and Centered Emblem */}
       <SculptureHero
         src="/assets/trinetra-logo.png"
         darkSrc="/assets/trinetra-logo.png"
@@ -96,33 +92,8 @@ export default function Home() {
         speed={1.2}
         liquid={1.4}
         turbulence={1.3}
-        centerElement={
-          <div className="relative flex flex-col items-center justify-center">
-            {/* Genkub Greeting Robot 3D Scene */}
-            <div className="h-[380px] w-[380px] sm:h-[460px] sm:w-[460px]">
-              <GenkubRobotScene className="h-full w-full" />
-            </div>
-            {/* Interactive Badge */}
-            <div className="mt-[-20px] flex items-center gap-2 rounded-full border border-[#ff2a8d]/40 bg-black/70 px-4 py-1.5 backdrop-blur-md">
-              <span className="h-2 w-2 animate-ping rounded-full bg-[#ff2a8d]" />
-              <span className="text-xs font-semibold text-[#ff2a8d]">
-                Genkub AI Sentinel • Eye & Head Tracking Active
-              </span>
-            </div>
-          </div>
-        }
         customNavRight={
           <div className="flex items-center gap-3">
-            {/* Supabase Live DB Logs Viewer */}
-            <button
-              onClick={() => setIsDbOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3.5 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-[#e5ff40]/40 hover:text-[#e5ff40]"
-            >
-              <Database className="h-3.5 w-3.5 text-[#e5ff40]" />
-              <span className="hidden sm:inline">Supabase</span> DB Logs
-            </button>
-
-            {/* User Auth Tab */}
             {currentUser ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
@@ -150,19 +121,13 @@ export default function Home() {
         }
       />
 
-      {/* Auth Modal Interface */}
+      {/* Auth Modal with Genkub 3D Robot on Right Side and Real Supabase OTP */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={(user) => {
           setCurrentUser(user)
         }}
-      />
-
-      {/* Supabase Live DB Entries Modal */}
-      <LoginEntriesModal
-        isOpen={isDbOpen}
-        onClose={() => setIsDbOpen(false)}
       />
 
       {/* Feature Ribbon */}
@@ -428,7 +393,7 @@ export default function Home() {
 
             <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 transition-all hover:border-[#e5ff40]/40">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5ff40]/20 text-[#e5ff40]">
-                <Database className="h-5 w-5" />
+                <Terminal className="h-5 w-5" />
               </div>
               <h3 className="mb-2 text-base font-bold text-white">Module D: Analyst Portal</h3>
               <p className="text-xs leading-relaxed text-zinc-400">
