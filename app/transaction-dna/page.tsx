@@ -23,10 +23,9 @@ export default function TransactionDnaPage() {
 
   const navItems = [
     { label: "Scanner", href: "/scanner", icon: Scan },
-    { label: "TinyFish Intel", href: "/?tab=tinyfish", icon: Globe },
+    { label: "TinyFish Intel", href: "/tinyfish", icon: Globe },
     { label: "Transaction DNA", href: "/transaction-dna", icon: Activity, active: true },
-    { label: "Analyst Portal", href: "/?tab=analyst-portal", icon: Terminal },
-    { label: "System Architecture", href: "/?tab=architecture", icon: Cpu }
+    { label: "Analyst Portal", href: "/analyst", icon: Terminal },
   ]
 
   useEffect(() => {

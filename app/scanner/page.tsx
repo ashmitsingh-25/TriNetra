@@ -26,10 +26,14 @@ import {
   Radio,
   FileText,
   BadgeAlert,
-  UserCheck
+  UserCheck,
+  Menu,
+  X,
+  Scan,
+  Activity
 } from "lucide-react"
 
-type InputTab = "qr" | "sms" | "url"
+type InputTab = "qr" | "sms"
 
 interface AnalysisResult {
   score: number
@@ -136,6 +140,36 @@ export default function ScannerPage() {
   const [copied, setCopied] = useState(false)
   const [telemetryExpanded, setTelemetryExpanded] = useState(true)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const navItems = [
+    { label: "Scanner", href: "/scanner", icon: Scan, active: true },
+    { label: "TinyFish Intel", href: "/tinyfish", icon: Globe },
+    { label: "Transaction DNA", href: "/transaction-dna", icon: Activity },
+    { label: "Analyst Portal", href: "/analyst", icon: Terminal },
+  ]
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("keydown", handleKeyDown)
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isOpen])
 
   // User input states
   const [rawUpiUri, setRawUpiUri] = useState(PRESETS[0].rawUpiUri)
@@ -442,32 +476,97 @@ export default function ScannerPage() {
           त्रिNETRA // FORENSICS
         </div>
 
-        {/* ─── TOP NAVIGATION: EXACT MATCH TO LANDING PAGE ─── */}
-        <header className="relative z-20 w-full border-b border-white/[0.08] bg-black/60 backdrop-blur-md">
+        {/* ─── TOP NAVIGATION HEADER WITH 3-LINE HAMBURGER TRIGGER ─── */}
+        <header className="relative z-30 w-full border-b border-white/[0.08] bg-black/70 backdrop-blur-md">
           <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
             
-            {/* Left Brand Identity */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative h-9 w-9 overflow-hidden bg-black/60 p-1 border border-white/[0.12] transition-transform group-hover:scale-105">
-                <Image
-                  src="/assets/trinetra-logo.png"
-                  alt="त्रिNETRA Logo"
-                  fill
-                  className="object-contain"
-                  priority
-                />
+            {/* Left Cluster: Hamburger Trigger + Brand Identity */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              
+              {/* Top-Left Hamburger Trigger & Popover */}
+              <div ref={menuRef} className="relative">
+                <button
+                  onClick={() => setIsOpen((prev) => !prev)}
+                  aria-label="Navigation Menu"
+                  aria-expanded={isOpen}
+                  className="w-10 h-10 rounded-xl border border-white/15 bg-[#0a0a0c]/80 backdrop-blur-md flex items-center justify-center text-white hover:border-[#ff2a8d]/60 hover:bg-white/[0.04] transition-all cursor-pointer shadow-lg group focus:outline-none"
+                >
+                  {isOpen ? (
+                    <X size={18} strokeWidth={1.75} className="text-[#ff2a8d] transition-transform duration-200" />
+                  ) : (
+                    <Menu size={18} strokeWidth={1.75} className="text-white group-hover:text-[#ff2a8d] transition-colors" />
+                  )}
+                </button>
+
+                {/* Popover Menu Dropdown */}
+                {isOpen && (
+                  <div 
+                    className="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-white/12 bg-[#08080a]/95 backdrop-blur-xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <div className="px-3 py-2 border-b border-white/5 mb-1.5 flex items-center justify-between">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400 font-bold">
+                        Navigation
+                      </span>
+                      <span className="font-mono text-[10px] text-neutral-600">
+                        ESC to close
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {navItems.map((item) => {
+                        const Icon = item.icon
+                        const isActive = item.active
+
+                        return (
+                          <Link
+                            key={item.label}
+                            href={item.href}
+                            onClick={() => setIsOpen(false)}
+                            className={`w-full rounded-xl px-3.5 py-2.5 flex items-center justify-between text-sm transition-all text-left ${
+                              isActive
+                                ? "bg-white/[0.06] text-[#ff2a8d] font-semibold shadow-inner"
+                                : "text-neutral-400 hover:text-white hover:bg-white/[0.03] font-medium"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className={`h-4 w-4 ${isActive ? "text-[#ff2a8d]" : "text-neutral-400"}`} />
+                              <span>{item.label}</span>
+                            </div>
+
+                            {isActive && (
+                              <span className="h-2 w-2 rounded-full bg-[#ff2a8d] shadow-[0_0_8px_#ff2a8d]" />
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-white text-lg">
-                  त्रिNETRA
-                </span>
-              </div>
-            </Link>
+
+              {/* Left Brand Identity */}
+              <Link href="/" className="flex items-center gap-3 group">
+                <div className="relative h-9 w-9 overflow-hidden bg-black/60 p-1 border border-white/[0.12] transition-transform group-hover:scale-105 rounded-lg">
+                  <Image
+                    src="/assets/trinetra-logo.png"
+                    alt="त्रिNETRA Logo"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold tracking-tight text-white text-lg">
+                    त्रिNETRA
+                  </span>
+                </div>
+              </Link>
+            </div>
 
             {/* Right Navigation Link */}
             <div className="flex items-center gap-6">
               <Link 
-                href="/?tab=analyst-portal" 
+                href="/analyst" 
                 className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#e5ff40] hover:text-[#d4ed36] transition-colors group"
               >
                 <span>Analyst Portal</span>
@@ -510,7 +609,7 @@ export default function ScannerPage() {
                ════════════════════════════════════════════════════════════ */}
             <div className="lg:col-span-5 space-y-8">
               
-              {/* Clean Borderless Pill Tabs */}
+              {/* Clean Borderless Pill Tabs (Only Scan QR and SMS / WhatsApp) */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -539,20 +638,6 @@ export default function ScannerPage() {
                   }`}
                 >
                   SMS / WhatsApp
-                </button>
-                <button
-                  onClick={() => {
-                    setActiveTab("url")
-                    setActiveSampleName(null)
-                    resetInspectionCards()
-                  }}
-                  className={`px-4 py-2 rounded-full font-mono text-xs font-bold transition-all ${
-                    activeTab === "url"
-                      ? "bg-[#ff2a8d] text-white shadow-[0_0_15px_rgba(255,42,141,0.35)]"
-                      : "text-neutral-400 hover:text-white hover:bg-white/[0.05]"
-                  }`}
-                >
-                  Website Link
                 </button>
               </div>
 
@@ -617,25 +702,6 @@ export default function ScannerPage() {
                   </div>
                 )}
 
-                {/* Website Link Tab */}
-                {activeTab === "url" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-400">
-                      Suspect Payment or Portal Link
-                    </label>
-                    <input
-                      type="text"
-                      value={phishingUrl}
-                      onChange={(e) => {
-                        setPhishingUrl(e.target.value)
-                        setActiveSampleName(null)
-                        resetInspectionCards()
-                      }}
-                      className="w-full border border-white/10 bg-black/40 backdrop-blur-[2px] p-3 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-[#ff2a8d] transition-colors font-sans"
-                      placeholder="https://..."
-                    />
-                  </div>
-                )}
 
                 {/* Claimed Recipient Field */}
                 <div className="space-y-2">

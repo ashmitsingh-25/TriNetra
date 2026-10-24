@@ -21,10 +21,9 @@ export default function AnalystPage() {
 
   const navItems = [
     { label: "Scanner", href: "/scanner", icon: Scan },
-    { label: "TinyFish Intel", href: "/?tab=tinyfish", icon: Globe },
+    { label: "TinyFish Intel", href: "/tinyfish", icon: Globe },
     { label: "Transaction DNA", href: "/transaction-dna", icon: Activity },
     { label: "Analyst Portal", href: "/analyst", icon: Terminal, active: true },
-    { label: "System Architecture", href: "/?tab=architecture", icon: Cpu }
   ]
 
   useEffect(() => {

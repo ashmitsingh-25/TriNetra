@@ -9,7 +9,6 @@ import ScannerTab from "@/components/dashboard/scanner-tab"
 import TinyFishCrawlerTab from "@/components/dashboard/tinyfish-crawler-tab"
 import TransactionDnaTab from "@/components/dashboard/transaction-dna-tab"
 import AnalystPortalTab from "@/components/dashboard/analyst-portal-tab"
-import ArchitectureTab from "@/components/dashboard/architecture-tab"
 import { 
   User, 
   LogOut, 
@@ -41,7 +40,7 @@ export default function Home() {
       // Check URL query parameter (e.g. /?tab=scanner)
       const params = new URLSearchParams(window.location.search)
       const tabParam = params.get("tab") as TabKey | null
-      const validDashboardTabs: TabKey[] = ["scanner", "tinyfish", "transaction-dna", "analyst-portal", "architecture"]
+      const validDashboardTabs: TabKey[] = ["scanner", "tinyfish", "transaction-dna", "analyst-portal"]
 
       if (loggedInUser) {
         // Authenticated user: tabs are active and accessible! Default to scanner or requested tab.
@@ -78,8 +77,7 @@ export default function Home() {
       scanner: "Sentinel Scanner",
       tinyfish: "TinyFish Autonomous Crawler",
       "transaction-dna": "Transaction DNA & Wave Clustering",
-      "analyst-portal": "Fraud Analyst Command Hub",
-      architecture: "System Architecture"
+      "analyst-portal": "Fraud Analyst Command Hub"
     }
     setGateTargetTab(tabNames[tabKey] || "Protected Tab")
     setAuthGateOpen(true)
@@ -145,7 +143,7 @@ export default function Home() {
             }
             secondaryCta={
               currentUser 
-                ? { label: "System Architecture", href: "/?tab=architecture" }
+                ? { label: "Forensic Scanner", href: "/scanner" }
                 : { label: "Explore Platform", href: "/auth" }
             }
             interactive={true}
@@ -196,7 +194,7 @@ export default function Home() {
       {currentUser && activeTab === "scanner" && (
         <main className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28">
           <ScannerTab 
-            onExploreArchitecture={() => handleSelectTab("architecture")} 
+            onExploreArchitecture={() => handleSelectTab("tinyfish")} 
             onOpenAuthGate={() => handleOpenAuthGate("tinyfish")}
             currentUser={currentUser}
           />
@@ -224,12 +222,6 @@ export default function Home() {
         </main>
       )}
 
-      {/* ─── TAB 5: SYSTEM ARCHITECTURE ─── */}
-      {currentUser && activeTab === "architecture" && (
-        <main className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28">
-          <ArchitectureTab onSwitchTab={(tab) => handleSelectTab(tab as TabKey)} />
-        </main>
-      )}
 
       {/* ─── FOOTER (DISPLAYED IN POST-LOGIN DEFENSE CONSOLES) ─── */}
       {currentUser && activeTab !== "overview" && (

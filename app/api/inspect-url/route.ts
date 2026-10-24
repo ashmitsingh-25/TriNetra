@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     let serverHost = "104.21.55.2 (Cloudflare CDN)"
     let riskSummary = "Benign web destination with valid SSL and no credential traps."
 
+    let extractedUpiIntent = ""
+    let extractedVpa = ""
+
     if (isSuspiciousTld && isDeceptiveUtility) {
       isPhishing = true
       pageTitle = "Online Electricity Bill Instant Clearance Desk (Counterfeit)"
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
         "<form action='http://194.26.29.112/harvest.php' method='POST'>"
       ]
       riskSummary = "Zero-Day Credential Harvester: Rogue form capturing confidential 6-digit UPI PIN within non-banking origin."
+      extractedUpiIntent = "upi://pay?pa=discom.billdesk99@axisbank&pn=Electricity%20Relief%20Desk&am=4850.00&cu=INR&tn=Electricity%20Immediate%20Payment"
+      extractedVpa = "discom.billdesk99@axisbank"
     } else if (isSuspiciousTld || isDeceptiveUtility) {
       isPhishing = true
       pageTitle = "Fastag Account Portal"
@@ -54,10 +59,14 @@ export async function POST(req: NextRequest) {
         "<form action='http://185.220.101.5/collector.php'>"
       ]
       riskSummary = "Suspicious Payment Gateway: Unregistered TLD requesting card CVV and banking passwords."
+      extractedUpiIntent = "upi://pay?pa=fastag.kycupdates99@paytm&pn=Fastag%20KYC%20Desk&am=1200.00&cu=INR&tn=Fastag%20KYC%20Renewal"
+      extractedVpa = "fastag.kycupdates99@paytm"
     } else {
       pageTitle = "Official Payment Gateway"
       serverHost = "104.21.55.2 (Cloudflare Verified CDN)"
       detectedTraps = []
+      extractedUpiIntent = "upi://pay?pa=billdesk@icici&pn=BillDesk%20Payment&mc=4900"
+      extractedVpa = "billdesk@icici"
     }
 
     return NextResponse.json({
@@ -70,7 +79,9 @@ export async function POST(req: NextRequest) {
       serverHost,
       isPhishing,
       detectedTraps,
-      riskSummary
+      riskSummary,
+      extractedUpiIntent,
+      extractedVpa
     })
   } catch (err: any) {
     return NextResponse.json({

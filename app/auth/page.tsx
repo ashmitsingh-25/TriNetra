@@ -169,22 +169,19 @@ export default function AuthPage() {
     try {
       const cleanEmail = signUpEmail.trim().toLowerCase()
 
-      // Trigger REAL Supabase OTP dispatch
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: true,
-        },
+      // Trigger guaranteed 6-digit OTP dispatch via backend
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, phone: signUpPhone }),
       })
+      const result = await res.json()
 
-      if (error) {
-        if (error.message.toLowerCase().includes("rate limit")) {
-          throw new Error("Supabase rate limit reached. Please wait 60 seconds before requesting another OTP.")
-        }
-        throw error
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Failed to dispatch verification OTP.")
       }
 
-      setOtpSentMessage(`A real verification OTP has been sent by Supabase to ${cleanEmail}. Please check your Gmail inbox and spam folder.`)
+      setOtpSentMessage(result.message || `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox and spam folder.`)
       setSignUpStep("otp")
       setResendCooldown(60)
 
@@ -219,15 +216,16 @@ export default function AuthPage() {
     try {
       const cleanEmail = signUpEmail.trim().toLowerCase()
 
-      // Verify the REAL OTP in Supabase Auth
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: enteredOtp.trim(),
-        type: "email",
+      // Verify the 6-digit OTP against database & Supabase Auth
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, otpCode: enteredOtp.trim() }),
       })
+      const result = await res.json()
 
-      if (error) {
-        throw new Error(error.message || "Invalid or expired OTP. Please re-check the code sent to your Gmail.")
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Invalid or expired OTP. Please re-check the 6-digit code sent to your Gmail.")
       }
 
       // Successfully verified real OTP! Move to password creation

@@ -18,7 +18,7 @@ import {
   X
 } from "lucide-react"
 
-export type TabKey = "overview" | "scanner" | "tinyfish" | "transaction-dna" | "analyst-portal" | "architecture"
+export type TabKey = "overview" | "scanner" | "tinyfish" | "transaction-dna" | "analyst-portal"
 
 interface DashboardHeaderProps {
   activeTab: TabKey
@@ -43,7 +43,6 @@ export default function DashboardHeader({
     { key: "tinyfish", label: "TinyFish Intel", icon: Globe, isProtected: true },
     { key: "transaction-dna", label: "Transaction DNA", icon: Activity, isProtected: true },
     { key: "analyst-portal", label: "Analyst Portal", icon: Terminal, isProtected: true },
-    { key: "architecture", label: "System Architecture", icon: Cpu, isProtected: false },
   ]
 
   // Close menu when clicking outside or pressing Escape

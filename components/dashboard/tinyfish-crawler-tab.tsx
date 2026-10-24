@@ -60,17 +60,39 @@ export default function TinyFishCrawlerTab() {
   }
 }`
 
-  const handleDispatch = () => {
+  const handleDispatch = async () => {
+    if (!targetUrl.trim()) return
     setIsCrawling(true)
-    setTimeout(() => {
-      setCrawlLogs((prev) => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] DISPATCH Inspecting new target: ${targetUrl}`,
-        `[${new Date().toLocaleTimeString()}] DOM_ANALYSIS Deceptive layout mimicking banking stylesheet verified.`,
-        `[${new Date().toLocaleTimeString()}] VERDICT Blacklist broadcasted to NPCI switch.`
-      ])
+    const timeStr = new Date().toLocaleTimeString()
+    setCrawlLogs((prev) => [
+      `[${timeStr}] DISPATCH Inspecting new target: ${targetUrl}`,
+      `[${timeStr}] TLS 1.3 Handshake initiating...`,
+      ...prev
+    ])
+
+    try {
+      const res = await fetch("/api/inspect-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+      })
+      const data = await res.json()
+      const finishTime = new Date().toLocaleTimeString()
+
+      if (data.success && data.isProvided) {
+        setCrawlLogs((prev) => [
+          `[${finishTime}] VERDICT: ${data.isPhishing ? "CRITICAL_TRAP" : "BENIGN"} | Risk score computed.`,
+          `[${finishTime}] DOM_ANALYSIS: ${data.detectedTraps?.length || 0} credential trap elements identified.`,
+          `[${finishTime}] HOST_INFO: ${data.serverHost}`,
+          `[${finishTime}] DOM_FINDING: ${data.riskSummary}`,
+          ...prev
+        ])
+      }
+    } catch (e: any) {
+      console.error("Crawler fetch error:", e)
+    } finally {
       setIsCrawling(false)
-    }, 1500)
+    }
   }
 
   const handleCopy = () => {
@@ -170,24 +192,30 @@ export default function TinyFishCrawlerTab() {
         <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono text-zinc-400">
           <span className="text-zinc-500 uppercase tracking-widest text-[10px]">Preload Vectors:</span>
           <button
-            onClick={() => setTargetUrl("https://sbi-reward-points-claim.cc/gift")}
+            onClick={() => {
+              setTargetUrl("https://state-electricity-ebill-portal.xyz/pay-instant")
+            }}
             className="hover:text-[#d6ef2f] underline decoration-dotted transition-colors"
           >
-            sbi-reward-points-claim.cc
+            Fake State Electricity Portal
           </button>
           <span>•</span>
           <button
-            onClick={() => setTargetUrl("https://axis-pan-update.xyz/login")}
+            onClick={() => {
+              setTargetUrl("https://fastag-kyc-desk.top/update")
+            }}
             className="hover:text-[#d6ef2f] underline decoration-dotted transition-colors"
           >
-            axis-pan-update.xyz
+            Fake Fastag KYC Suspend Link
           </button>
           <span>•</span>
           <button
-            onClick={() => setTargetUrl("http://194.26.29.112:8080/upi-refund")}
+            onClick={() => {
+              setTargetUrl("https://billdesk.io/official-pay")
+            }}
             className="hover:text-[#d6ef2f] underline decoration-dotted transition-colors"
           >
-            194.26.29.112:8080/upi-refund
+            Legitimate Official Bill Gateway
           </button>
         </div>
       </div>
