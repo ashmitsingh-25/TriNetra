@@ -62,10 +62,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         provider: "google",
         options: {
           redirectTo: `${origin}/auth/callback`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
         },
       })
       if (error) throw error
