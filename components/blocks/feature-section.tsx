@@ -7,12 +7,8 @@ import {
   ShieldAlert, 
   Globe, 
   Activity, 
-  Sparkles, 
   X, 
   Play, 
-  RotateCcw, 
-  ArrowRight,
-  ShieldCheck,
   Cpu
 } from "lucide-react";
 
@@ -118,21 +114,19 @@ function InkOrbitSculpture({
 
     // Generate 3D orbit rings and particles based on step & seed
     const ringCount = 5;
-    const particleCount = 140;
+    const particleCount = 130;
 
     const particles = Array.from({ length: particleCount }).map((_, i) => {
       const ringIndex = i % ringCount;
-      const baseRadius = 60 + ringIndex * 34;
       const angleOffset = (i / particleCount) * Math.PI * 2;
-      const speed = (0.4 + seededRandom(seed + i) * 0.8) * (ringIndex % 2 === 0 ? 1 : -1);
+      const speed = (0.35 + seededRandom(seed + i) * 0.7) * (ringIndex % 2 === 0 ? 1 : -1);
       const size = 1.2 + seededRandom(seed + i * 2) * 2.2;
-      const tiltX = (seededRandom(seed + ringIndex * 3) - 0.5) * 1.2;
-      const tiltY = (seededRandom(seed + ringIndex * 4) - 0.5) * 1.2;
+      const tiltX = (seededRandom(seed + ringIndex * 3) - 0.5) * 1.1;
+      const tiltY = (seededRandom(seed + ringIndex * 4) - 0.5) * 1.1;
       const colorType = i % 3; // 0: pink, 1: chartreuse, 2: white
 
       return {
         ringIndex,
-        baseRadius,
         angle: angleOffset,
         speed,
         size,
@@ -154,36 +148,74 @@ function InkOrbitSculpture({
       ctx.fillStyle = "rgba(9, 9, 13, 0.28)";
       ctx.fillRect(0, 0, width, height);
 
+      // Centering & scale strictly tuned to frame dimensions
       const cx = width / 2;
       const cy = height / 2;
-      const rotY = pointerRef.current.x * 0.8 + time * 0.25;
-      const rotX = pointerRef.current.y * 0.6 + 0.35;
+      const scaleBase = Math.min(width, height) * 0.32;
+
+      const rotY = pointerRef.current.x * 0.75 + time * 0.22;
+      const rotX = pointerRef.current.y * 0.55 + 0.32;
 
       // ─── 1. CORE RADIAL GLOW & SACRED THIRD EYE FOCAL ───
-      const corePulse = 18 + Math.sin(time * 3) * 4;
-      const radialGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 180);
-      radialGradient.addColorStop(0, "rgba(255, 42, 141, 0.25)");
-      radialGradient.addColorStop(0.35, "rgba(229, 255, 64, 0.08)");
+      const corePulse = 16 + Math.sin(time * 3) * 3.5;
+      const radialGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, scaleBase * 1.35);
+      radialGradient.addColorStop(0, "rgba(255, 42, 141, 0.28)");
+      radialGradient.addColorStop(0.35, "rgba(229, 255, 64, 0.09)");
       radialGradient.addColorStop(1, "rgba(9, 9, 13, 0)");
       ctx.fillStyle = radialGradient;
       ctx.beginPath();
-      ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+      ctx.arc(cx, cy, scaleBase * 1.35, 0, Math.PI * 2);
       ctx.fill();
 
-      // Glowing central vortex node
+      // ─── 2. RADAR & DEFENSE SPIKES (CROSSHAIRS & SPIKES) ───
+      const spikeCount = 8;
+      const spikeInner = scaleBase * 0.25;
+      const spikeOuter = scaleBase * 0.95 + Math.sin(time * 4) * 6;
+      ctx.save();
+      for (let k = 0; k < spikeCount; k++) {
+        const spikeAngle = (k / spikeCount) * Math.PI * 2 + rotY * 0.4;
+        const cosA = Math.cos(spikeAngle);
+        const sinA = Math.sin(spikeAngle);
+        
+        ctx.beginPath();
+        ctx.moveTo(cx + cosA * spikeInner, cy + sinA * spikeInner);
+        ctx.lineTo(cx + cosA * spikeOuter, cy + sinA * spikeOuter);
+        ctx.strokeStyle = k % 2 === 0 ? "rgba(255, 42, 141, 0.22)" : "rgba(229, 255, 64, 0.16)";
+        ctx.lineWidth = k % 4 === 0 ? 1.5 : 0.8;
+        ctx.stroke();
+
+        // Tip tick
+        if (k % 2 === 0) {
+          ctx.beginPath();
+          ctx.arc(cx + cosA * spikeOuter, cy + sinA * spikeOuter, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = "#e5ff40";
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // ─── 3. GLASS SPHERE CENTRAL CORE ───
+      // Outer glass rim glow
+      ctx.save();
       ctx.fillStyle = activeStep === 1 ? "#e5ff40" : "#ff2a8d";
       ctx.shadowColor = activeStep === 1 ? "#e5ff40" : "#ff2a8d";
-      ctx.shadowBlur = 24;
+      ctx.shadowBlur = 28;
       ctx.beginPath();
-      ctx.arc(cx, cy, corePulse * 0.35, 0, Math.PI * 2);
+      ctx.arc(cx, cy, corePulse * 0.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.restore();
 
-      // ─── 2. 3D ORBITAL RINGS ───
+      // Specular glass highlight reflection
+      ctx.beginPath();
+      ctx.arc(cx - corePulse * 0.12, cy - corePulse * 0.12, corePulse * 0.16, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.fill();
+
+      // ─── 4. 3D ORBITAL RINGS ───
       for (let r = 0; r < ringCount; r++) {
-        const radius = 65 + r * 35;
-        const ringTiltX = rotX + (r * 0.15);
-        const ringTiltY = rotY + (r * 0.2);
+        const radius = scaleBase * (0.42 + r * 0.21);
+        const ringTiltX = rotX + (r * 0.14);
+        const ringTiltY = rotY + (r * 0.18);
 
         ctx.beginPath();
         const steps = 64;
@@ -192,7 +224,7 @@ function InkOrbitSculpture({
           
           // 3D coordinate on circle
           let x3 = radius * Math.cos(theta);
-          let y3 = radius * Math.sin(theta) * 0.35;
+          let y3 = radius * Math.sin(theta) * 0.36;
           let z3 = radius * Math.sin(theta);
 
           // Rotate around X
@@ -208,7 +240,7 @@ function InkOrbitSculpture({
           const zFinal = -x3 * sinY + zRotX * cosY;
 
           // Perspective projection
-          const fov = 320;
+          const fov = 340;
           const scale = fov / (fov + zFinal);
           const projX = cx + xRotY * scale;
           const projY = cy + yRotX * scale;
@@ -220,22 +252,22 @@ function InkOrbitSculpture({
           }
         }
 
-        ctx.strokeStyle = r % 2 === 0 ? "rgba(255, 42, 141, 0.18)" : "rgba(229, 255, 64, 0.14)";
-        ctx.lineWidth = r === activeStep ? 1.5 : 0.8;
+        ctx.strokeStyle = r % 2 === 0 ? "rgba(255, 42, 141, 0.22)" : "rgba(229, 255, 64, 0.18)";
+        ctx.lineWidth = r === activeStep ? 1.6 : 0.85;
         ctx.stroke();
       }
 
-      // ─── 3. ORBITING INK PARTICLES WITH 3D DEPTH ───
+      // ─── 5. ORBITING INK PARTICLES WITH 3D DEPTH ───
       particles.forEach((p) => {
-        p.angle += p.speed * 0.02;
+        p.angle += p.speed * 0.022;
 
-        const rad = p.baseRadius + Math.sin(time * 2 + p.ringIndex) * 8;
+        const rad = scaleBase * (0.42 + p.ringIndex * 0.21) + Math.sin(time * 2.2 + p.ringIndex) * 6;
         const curTiltX = rotX + p.tiltX;
         const curTiltY = rotY + p.tiltY;
 
         // 3D position
         let x3 = rad * Math.cos(p.angle);
-        let y3 = rad * Math.sin(p.angle) * 0.38;
+        let y3 = rad * Math.sin(p.angle) * 0.36;
         let z3 = rad * Math.sin(p.angle);
 
         // Rotation transforms
@@ -250,7 +282,7 @@ function InkOrbitSculpture({
         const zFinal = -x3 * sinY + zRotX * cosY;
 
         // Perspective
-        const fov = 320;
+        const fov = 340;
         const scale = fov / (fov + zFinal);
         const projX = cx + xRotY * scale;
         const projY = cy + yRotX * scale;
@@ -268,7 +300,7 @@ function InkOrbitSculpture({
           ctx.moveTo(pt.x, pt.y);
           ctx.lineTo(nextPt.x, nextPt.y);
           ctx.strokeStyle = p.colorType === 0 ? `rgba(255, 42, 141, ${trailAlpha})` : `rgba(229, 255, 64, ${trailAlpha})`;
-          ctx.lineWidth = p.size * scale * 0.6;
+          ctx.lineWidth = p.size * scale * 0.65;
           ctx.stroke();
         }
 
@@ -286,11 +318,11 @@ function InkOrbitSculpture({
         ctx.fill();
 
         // Highlight nodes
-        if (p.size > 2.5 && depthAlpha > 0.7) {
+        if (p.size > 2.4 && depthAlpha > 0.7) {
           ctx.shadowColor = p.colorType === 0 ? "#ff2a8d" : "#e5ff40";
           ctx.shadowBlur = 8;
           ctx.beginPath();
-          ctx.arc(projX, projY, p.size * scale * 0.8, 0, Math.PI * 2);
+          ctx.arc(projX, projY, p.size * scale * 0.75, 0, Math.PI * 2);
           ctx.fill();
           ctx.shadowBlur = 0;
         }
@@ -325,16 +357,13 @@ function DemoDialog({
   onClose: () => void;
 }) {
   const [activeStage, setActiveStage] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setActiveStage(0);
-      setIsRunning(false);
       return;
     }
 
-    setIsRunning(true);
     let stage = 0;
     const interval = setInterval(() => {
       stage = (stage + 1) % TRINETRA_DEMO_STEPS.length;
@@ -449,7 +478,7 @@ function DemoDialog({
   );
 }
 
-// ─── MAIN EXPORT: FEATURESTEPS WITH 3D INK ORBIT SCULPTURE ON THE RIGHT ───
+// ─── MAIN EXPORT: FEATURESTEPS WITH ALIGNED STEPPERS & SEPARATED 3D FRAME ───
 interface FeatureStepsProps {
   features: FeatureStep[];
   title?: string;
@@ -463,7 +492,6 @@ export function FeatureSteps({
   features,
   title = "How त्रिNETRA Protects Every Rupee",
   autoPlayInterval = 4000,
-  imageHeight = "h-[680px]",
   className,
 }: FeatureStepsProps) {
   const [currentFeature, setCurrentFeature] = useState(0);
@@ -515,167 +543,154 @@ export function FeatureSteps({
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto">
-        {/* 2-Column Split: Left Side holds Header + Steps; Right Side holds the 3D Ink Orbit Sculpture */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          
-          {/* LEFT COLUMN: Unchanged Header + Interactive Steps */}
-          <div className="lg:col-span-6 flex flex-col justify-start">
-            <div className="mb-10 max-w-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="h-[2px] w-7 bg-[#ff2a8d]" />
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#ff2a8d]">
-                  ABOUT त्रिNETRA // PRE-PAYMENT CYBER DEFENSE
-                </span>
-              </div>
-              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08]">
-                {title}{" "}
-                <span className="block font-serif italic font-normal text-[#ff2a8d] mt-1">
-                  before money leaves.
-                </span>
-              </h2>
-              <p className="mt-5 text-base sm:text-lg text-neutral-400 leading-relaxed">
-                Traditional banking systems react only after money has already left a victim&apos;s account.
-                त्रिNETRA intervenes at the moment you scan a QR code or receive a payment link.
-              </p>
-            </div>
+        {/* TOP HEADER: Full-width editorial intro */}
+        <div className="mb-14 max-w-3xl">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="h-[2px] w-7 bg-[#ff2a8d]" />
+            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#ff2a8d]">
+              ABOUT त्रिNETRA // PRE-PAYMENT CYBER DEFENSE
+            </span>
+          </div>
+          <h2 className="text-4xl sm:text-6xl font-bold tracking-tight text-white leading-[1.08]">
+            {title}{" "}
+            <span className="block font-serif italic font-normal text-[#ff2a8d] mt-1">
+              before money leaves.
+            </span>
+          </h2>
+          <p className="mt-5 text-base sm:text-lg text-neutral-400 leading-relaxed max-w-2xl">
+            Traditional banking systems react only after money has already left a victim&apos;s account.
+            त्रिNETRA intervenes at the moment you scan a QR code or receive a payment link.
+          </p>
+        </div>
 
-            {/* Stepper List */}
-            <div className="space-y-5">
-              {features.map((feature, index) => {
-                const isActive = index === currentFeature;
-                const isCompleted = index < currentFeature;
+        {/* 2-COLUMN BODY: Left = 3 Step Cards | Right = Active Card on top + Full Unobstructed 3D Orbit Beneath */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          {/* LEFT COLUMN: Stepper List */}
+          <div className="lg:col-span-6 space-y-5">
+            {features.map((feature, index) => {
+              const isActive = index === currentFeature;
+              const isCompleted = index < currentFeature;
 
-                return (
-                  <div
-                    key={feature.step}
-                    onClick={() => handleSelect(index)}
-                    className={cn(
-                      "group relative cursor-pointer rounded-2xl p-6 transition-all duration-300 border",
-                      isActive
-                        ? "bg-white/[0.03] border-[#ff2a8d]/60 shadow-[0_0_35px_-10px_rgba(255,42,141,0.3)]"
-                        : "bg-transparent border-white/[0.06] opacity-55 hover:opacity-90 hover:border-white/15"
-                    )}
-                  >
-                    <div className="flex items-start gap-5">
-                      {/* Step Circle Indicator */}
-                      <div
-                        className={cn(
-                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors",
-                          isActive
-                            ? "bg-[#ff2a8d] border-[#ff2a8d] text-white shadow-[0_0_20px_rgba(255,42,141,0.6)]"
-                            : isCompleted
-                              ? "bg-[#e5ff40]/15 border-[#e5ff40] text-[#e5ff40]"
-                              : "bg-white/[0.03] border-white/15 text-neutral-400"
-                        )}
-                      >
-                        {isCompleted ? <Check className="w-5 h-5" /> : index + 1}
-                      </div>
+              return (
+                <div
+                  key={feature.step}
+                  onClick={() => handleSelect(index)}
+                  className={cn(
+                    "group relative cursor-pointer rounded-2xl p-6 transition-all duration-300 border",
+                    isActive
+                      ? "bg-white/[0.03] border-[#ff2a8d]/60 shadow-[0_0_35px_-10px_rgba(255,42,141,0.3)]"
+                      : "bg-transparent border-white/[0.06] opacity-55 hover:opacity-90 hover:border-white/15"
+                  )}
+                >
+                  <div className="flex items-start gap-5">
+                    <div
+                      className={cn(
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors",
+                        isActive
+                          ? "bg-[#ff2a8d] border-[#ff2a8d] text-white shadow-[0_0_20px_rgba(255,42,141,0.6)]"
+                          : isCompleted
+                            ? "bg-[#e5ff40]/15 border-[#e5ff40] text-[#e5ff40]"
+                            : "bg-white/[0.03] border-white/15 text-neutral-400"
+                      )}
+                    >
+                      {isCompleted ? <Check className="w-5 h-5"/> : index + 1}
+                    </div>
 
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={cn(
-                              "text-xs font-mono uppercase tracking-[0.18em]",
-                              isActive ? "text-[#e5ff40]" : "text-neutral-500"
-                            )}
-                          >
-                            {feature.step}
-                          </span>
-                          {feature.tag && (
-                            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#ff2a8d]/15 text-[#ff2a8d] border border-[#ff2a8d]/30">
-                              {feature.tag}
-                            </span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span
+                          className={cn(
+                            "text-xs font-mono uppercase tracking-[0.18em]",
+                            isActive ? "text-[#e5ff40]" : "text-neutral-500"
                           )}
-                        </div>
-
-                        <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
-                          {feature.title}
-                        </h3>
-                        <p className="mt-2 text-sm sm:text-base text-neutral-400 leading-relaxed">
-                          {feature.content}
-                        </p>
-
-                        {/* Animated Progress Bar for Active Step */}
-                        {isActive && (
-                          <div className="mt-4 h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-[#ff2a8d] to-[#e5ff40] transition-all duration-75"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                        >
+                          {feature.step}
+                        </span>
+                        {feature.tag && (
+                          <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#ff2a8d]/15 text-[#ff2a8d] border border-[#ff2a8d]/30">
+                            {feature.tag}
+                          </span>
                         )}
                       </div>
+
+                      <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-2 text-sm sm:text-base text-neutral-400 leading-relaxed">
+                        {feature.content}
+                      </p>
+
+                      {isActive && (
+                        <div className="mt-4 h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#ff2a8d] to-[#e5ff40] transition-all duration-75"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* RIGHT COLUMN: 3D Ink Orbit Sculpture & Live Simulation Frame */}
-          <div className="lg:col-span-6 lg:sticky lg:top-24">
-            <div
-              className={cn(
-                "relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#09090d] shadow-2xl flex flex-col justify-between",
-                imageHeight
-              )}
-            >
-              {/* Background 3D Procedural Canvas */}
-              <div className="absolute inset-0 z-0">
-                <InkOrbitSculpture seed={seed} activeStep={currentFeature} />
-              </div>
-
-              {/* Top HUD Controls inside 3D Frame */}
-              <div className="relative z-10 p-6 sm:p-8 flex items-center justify-between pointer-events-auto">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider bg-[#050505]/85 border border-white/15 text-[#e5ff40] backdrop-blur-md shadow-lg">
-                    <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-pulse" />
-                    {activeFeature.step} // 3D DEFENSE ORBIT
+          {/* RIGHT COLUMN: Placed alongside step cards, Active Card on top and Full 3D Orbit Animation beneath it */}
+          <div className="lg:col-span-6 flex flex-col gap-6">
+            {/* 1. Active Module Info Card */}
+            <div className="rounded-2xl bg-[#09090d] border border-[#ff2a8d]/35 p-6 shadow-2xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-[#ff2a8d] text-xs font-mono uppercase tracking-widest font-bold">
+                  {currentFeature === 0 && <ShieldAlert className="w-4 h-4"/>}
+                  {currentFeature === 1 && <Globe className="w-4 h-4"/>}
+                  {currentFeature === 2 && <Activity className="w-4 h-4"/>}
+                  <span>{activeFeature?.tag || "REAL-TIME INTERCEPT"}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setDemoOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono uppercase font-bold text-white bg-[#ff2a8d]/80 hover:bg-[#ff2a8d] border border-[#ff2a8d] transition-all shadow-[0_0_15px_rgba(255,42,141,0.4)] cursor-pointer"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Pipeline Demo</span>
+                  </button>
+                  <span className="text-xs font-mono text-neutral-500">
+                    SEED: #{String(seed).padStart(4, "0")}
                   </span>
                 </div>
-
-                <button
-                  onClick={() => setDemoOpen(true)}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono uppercase font-bold text-white bg-[#ff2a8d]/80 hover:bg-[#ff2a8d] border border-[#ff2a8d] transition-all shadow-[0_0_20px_rgba(255,42,141,0.5)] cursor-pointer backdrop-blur-md"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Pipeline Demo</span>
-                </button>
               </div>
 
-              {/* Bottom Telemetry HUD Card inside 3D Frame */}
-              <div className="relative z-10 p-6 sm:p-8 pointer-events-auto">
-                <div className="rounded-2xl bg-[#050505]/90 backdrop-blur-xl border border-[#ff2a8d]/35 p-6 shadow-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 text-[#ff2a8d] text-xs font-mono uppercase tracking-widest font-bold">
-                      {currentFeature === 0 && <ShieldAlert className="w-4 h-4" />}
-                      {currentFeature === 1 && <Globe className="w-4 h-4" />}
-                      {currentFeature === 2 && <Activity className="w-4 h-4" />}
-                      <span>{activeFeature.tag || "REAL-TIME INTERCEPT"}</span>
-                    </div>
+              <h4 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {activeFeature?.title}
+              </h4>
+              <p className="mt-2 text-sm text-neutral-300 leading-relaxed">
+                {activeFeature?.content}
+              </p>
 
-                    <span className="font-mono text-[10px] text-zinc-500 uppercase">
-                      SEED: #{seed}
-                    </span>
-                  </div>
-
-                  <h4 className="text-2xl font-bold text-white tracking-tight">
-                    {activeFeature.title}
-                  </h4>
-
-                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
-                    {activeFeature.content}
-                  </p>
-
-                  <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
-                    <span className="text-neutral-400">DETECTION METRIC</span>
-                    <span className="text-[#e5ff40] font-semibold">{activeFeature.metrics || "100% Verified"}</span>
-                  </div>
+              {activeFeature?.metrics && (
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
+                  <span className="text-neutral-400">DETECTION METRIC</span>
+                  <span className="text-[#e5ff40] font-semibold">{activeFeature.metrics}</span>
                 </div>
+              )}
+            </div>
+
+            {/* 2. Dedicated 3D Ink Orbit Sculpture Frame (h-[480px], 100% unobstructed) */}
+            <div className="relative w-full h-[480px] overflow-hidden rounded-3xl border border-white/10 bg-[#09090d] shadow-2xl">
+              <InkOrbitSculpture seed={seed} activeStep={currentFeature} />
+              
+              {/* Top HUD Badge */}
+              <div className="pointer-events-none absolute top-4 left-4 z-10">
+                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono uppercase tracking-wider bg-[#050505]/85 border border-white/15 text-[#e5ff40] backdrop-blur-md shadow-lg">
+                  <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-pulse" />
+                  {activeFeature?.step || "STEP 01"} // 3D DEFENSE ORBIT
+                </span>
               </div>
 
-              {/* Radial gradient vignette to blend edges cleanly */}
-              <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10" />
+              {/* Bottom Right Corner Indicator */}
+              <div className="pointer-events-none absolute bottom-4 right-4 z-10 text-[10px] font-mono text-neutral-500 bg-[#050505]/75 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm">
+                DRAG TO TILT // 60FPS
+              </div>
             </div>
           </div>
 
@@ -687,4 +702,5 @@ export function FeatureSteps({
     </section>
   );
 }
+
 export default FeatureSteps;
