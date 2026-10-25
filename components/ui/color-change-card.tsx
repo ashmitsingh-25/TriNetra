@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ArrowUpRight, Scan, Globe, Activity, ShieldCheck } from "lucide-react";
+import { ShaderAnimation } from "@/components/ui/shader-animation";
 
 interface CardItem {
   heading: string;
@@ -57,8 +58,15 @@ export default function ColorChangeCards({
   onNavigateModule?: (index: number) => void;
 }) {
   return (
-    <section className="relative w-full bg-[#050505] py-24 px-6 sm:px-12 lg:px-20 border-t border-white/[0.06]">
-      <div className="max-w-7xl mx-auto">
+    <section className="relative w-full bg-[#050505] py-24 px-6 sm:px-12 lg:px-20 border-t border-white/[0.06] overflow-hidden">
+      {/* ─── WebGL Shader Animation Background (TriNETRA Theme: Hot Pink & Chartreuse) ─── */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-55">
+        <ShaderAnimation speed={0.035} opacity={0.75} />
+        {/* Soft radial vignette to preserve card readability and section borders */}
+        <div className="absolute inset-0 bg-radial-[circle_at_center,transparent_40%,#050505_95%]" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
         {/* Section Header matching Landing Page */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
           <div>

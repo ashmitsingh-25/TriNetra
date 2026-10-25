@@ -4,6 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { MessageSquare, Sparkles, X, ShieldAlert, Bot, User } from "lucide-react";
 import { MetalPromptBar } from "@/components/ui/metal-prompt-bar";
+import { ParticleButton } from "@/components/ui/particle-button";
 import { cn } from "@/lib/utils";
 
 // Dynamically load Spline on client to avoid SSR hydration issues
@@ -151,35 +152,36 @@ export default function TrinetraAIChatbot() {
         className="fixed bottom-6 right-6 z-[99999] pointer-events-auto flex items-center"
       >
         {!open && (
-          <button
+          <ParticleButton
             id="trinetra-ai-chatbot-button"
-            type="button"
+            successDuration={1000}
+            variant="default"
             onClick={() => setOpen(true)}
             aria-label="Open त्रिNETRA AI Chatbot"
-            className="group relative flex items-center gap-3 rounded-full border-2 border-[#ff2a8d] bg-[#07070a]/95 px-5 py-3.5 text-sm font-bold text-white shadow-[0_0_40px_rgba(255,42,141,0.85),0_0_15px_rgba(229,255,64,0.4)] backdrop-blur-2xl transition-all duration-300 hover:scale-105 hover:border-[#e5ff40] hover:shadow-[0_0_50px_rgba(229,255,64,0.7)] cursor-pointer"
+            className="group relative flex items-center gap-2.5 rounded-full border border-[#ff2a8d] bg-[#07070a]/95 px-4 py-2 text-xs font-bold text-white shadow-[0_0_25px_rgba(255,42,141,0.6)] backdrop-blur-xl transition-all duration-300 hover:scale-105 hover:border-[#e5ff40] hover:shadow-[0_0_30px_rgba(229,255,64,0.6)] cursor-pointer h-auto"
           >
             {/* Live Chartreuse Radar Ping Indicator */}
-            <span className="relative flex h-3 w-3">
+            <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e5ff40] opacity-80" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#e5ff40] shadow-[0_0_8px_#e5ff40]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#e5ff40] shadow-[0_0_6px_#e5ff40]" />
             </span>
 
             {/* Glowing Bot & Sparkles Icon */}
             <div className="relative flex items-center justify-center">
-              <MessageSquare className="h-4 w-4 text-[#ff2a8d] group-hover:text-[#e5ff40] transition-colors" />
-              <Sparkles className="h-2.5 w-2.5 text-[#e5ff40] absolute -top-1.5 -right-1.5 animate-pulse" />
+              <MessageSquare className="h-3.5 w-3.5 text-[#ff2a8d] group-hover:text-[#e5ff40] transition-colors" />
+              <Sparkles className="h-2 w-2 text-[#e5ff40] absolute -top-1 -right-1 animate-pulse" />
             </div>
 
             {/* Main Label */}
-            <span className="tracking-tight font-extrabold text-white">
+            <span className="tracking-tight font-bold text-white text-xs">
               Ask त्रिNETRA AI
             </span>
 
             {/* Subtle live tag */}
-            <span className="hidden sm:inline-block rounded-full bg-[#e5ff40]/15 border border-[#e5ff40]/40 px-2 py-0.5 font-mono text-[9px] font-bold text-[#e5ff40]">
-              24/7 LIVE
+            <span className="hidden sm:inline-block rounded-full bg-[#e5ff40]/15 border border-[#e5ff40]/40 px-1.5 py-0.5 font-mono text-[8px] font-bold text-[#e5ff40]">
+              LIVE
             </span>
-          </button>
+          </ParticleButton>
         )}
       </div>
 
