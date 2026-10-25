@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "त्रिNETRA (TriNETRA) — AI-Powered UPI Fraud Prevention & Scam Intelligence",
-  description: "Stop UPI scams before payment. Detect new scam waves before they spread with real-time QR forensic verification and TinyFish live-web intelligence.",
+  title: "त्रिNETRA // AI-Powered UPI Fraud Prevention & Scam Intelligence",
+  description: "Stop UPI scams before payment. Detect new scam waves before they spread.",
 };
 
 export default function RootLayout({
@@ -24,15 +24,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full dark antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-[#050505] text-[#ededed] selection:bg-[#ff2a8d] selection:text-white">
+    <html lang="en" className="dark">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#050505] text-white selection:bg-[#ff2a8d] selection:text-white`}
+      >
+        {/* Main application content */}
         {children}
+
+        {/* Global Floating AI Chatbot & 3D Spline Split Window */}
         <TrinetraAIChatbot />
       </body>
     </html>
   );
 }
-
