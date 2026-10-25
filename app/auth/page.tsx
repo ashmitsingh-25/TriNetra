@@ -1,76 +1,53 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SplineScene from "@/components/ui/spline-scene"
 import { 
-  Phone, 
   Mail, 
   Lock, 
-  KeyRound, 
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
   ArrowLeft,
   Eye, 
   EyeOff,
-  Sparkles,
   ShieldCheck,
   RefreshCw,
-  Info,
-  ExternalLink,
-  ShieldAlert
+  Sparkles,
+  UserCheck
 } from "lucide-react"
 
 export default function AuthPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin")
 
-  // Sign In state
-  const [signInPhone, setSignInPhone] = useState("+91 ")
+  // Sign In state (Direct Email Login)
+  const [signInEmail, setSignInEmail] = useState("")
   const [signInPassword, setSignInPassword] = useState("")
   const [showSignInPass, setShowSignInPass] = useState(false)
   const [signInError, setSignInError] = useState("")
   const [signInLoading, setSignInLoading] = useState(false)
 
-  // Sign Up state
-  const [signUpStep, setSignUpStep] = useState<"details" | "otp" | "password">("details")
-  const [signUpPhone, setSignUpPhone] = useState("+91 ")
+  // Sign Up state (Direct Email Signup -> Create Password)
+  const [signUpStep, setSignUpStep] = useState<"email" | "password">("email")
   const [signUpEmail, setSignUpEmail] = useState("")
-  const [enteredOtp, setEnteredOtp] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showNewPass, setShowNewPass] = useState(false)
   const [showConfirmPass, setShowConfirmPass] = useState(false)
   const [signUpError, setSignUpError] = useState("")
   const [signUpLoading, setSignUpLoading] = useState(false)
-  const [otpSentMessage, setOtpSentMessage] = useState("")
-  const [resendCooldown, setResendCooldown] = useState(0)
 
   // Success state
   const [authSuccess, setAuthSuccess] = useState(false)
 
-  // Phone sanitizer (+91 prefix)
-  const handlePhoneChange = (val: string, setter: (v: string) => void) => {
-    let raw = val
-    if (!raw.startsWith("+91")) {
-      raw = "+91 " + raw.replace(/^\+?91\s?/, "")
-    }
-    setter(raw)
-  }
-
-  // Validate phone number format
-  const isValidIndianPhone = (phone: string) => {
-    const digits = phone.replace(/\D/g, "")
-    return digits.length === 12 && digits.startsWith("91")
-  }
-
-  // Validate Gmail constraint
-  const isValidGmail = (email: string) => {
+  // Validate email address
+  const isValidEmail = (email: string) => {
     const trimmed = email.trim().toLowerCase()
-    return /^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(trimmed)
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
   }
 
   // Validate alphanumeric password >= 6
@@ -81,25 +58,26 @@ export default function AuthPage() {
     return hasAlpha && hasNum
   }
 
-  // Redirect after verification
-  const handleAuthComplete = (user: { phone: string; email?: string }) => {
+  // Redirect after successful authentication
+  const handleAuthComplete = (user: { email: string; phone?: string }) => {
     setAuthSuccess(true)
     if (typeof window !== "undefined") {
       localStorage.setItem("trinetra_user", JSON.stringify(user))
     }
-    // Redirect directly to the scanner page and dashboard tabs
+    // Redirect directly to the Sentinel Scanner dashboard tab
     setTimeout(() => {
       router.push("/?tab=scanner")
     }, 1200)
   }
 
-  // --- SIGN IN HANDLER ---
+  // ─── DIRECT EMAIL SIGN IN HANDLER ───
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignInError("")
 
-    if (!isValidIndianPhone(signInPhone)) {
-      setSignInError("Please enter a valid 10-digit Indian mobile number with +91.")
+    const cleanInput = signInEmail.trim()
+    if (!cleanInput) {
+      setSignInError("Please enter your registered email address.")
       return
     }
 
@@ -111,139 +89,105 @@ export default function AuthPage() {
     setSignInLoading(true)
 
     try {
-      const cleanPhone = signInPhone.replace(/\s+/g, "")
+      const lowerInput = cleanInput.toLowerCase()
 
-      // Query users_profile from Supabase
-      const { data: user, error } = await supabase
+      // Query users_profile by email first
+      let { data: user, error } = await supabase
         .from("users_profile")
         .select("*")
-        .eq("phone_number", cleanPhone)
-        .single()
+        .eq("email", lowerInput)
+        .maybeSingle()
+
+      // Fallback: If not found by email, check phone_number column in case of prior mobile registration
+      if (!user) {
+        const cleanPhone = cleanInput.replace(/\s+/g, "")
+        const phoneLookup = await supabase
+          .from("users_profile")
+          .select("*")
+          .eq("phone_number", cleanPhone)
+          .maybeSingle()
+
+        if (phoneLookup.data) {
+          user = phoneLookup.data
+        }
+      }
 
       if (error || !user) {
-        setSignInError("No account found with this phone number. Please switch to Sign Up.")
+        setSignInError("No account found with this email. Please switch to Sign Up to register.")
         setSignInLoading(false)
         return
       }
 
       if (user.password_hash !== signInPassword) {
-        setSignInError("Incorrect password. Please try again.")
+        setSignInError("Incorrect password. Please verify and try again.")
         setSignInLoading(false)
         return
       }
 
-      // Record login entry in Supabase
-      await supabase.from("login_entries").insert({
-        phone_number: cleanPhone,
-        email: user.email,
-        auth_method: "phone_password",
-        status: "SUCCESS",
-        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
-      })
+      // Record login entry in Supabase telemetry
+      try {
+        await supabase.from("login_entries").insert({
+          email: user.email || lowerInput,
+          phone_number: user.phone_number || user.email || lowerInput,
+          auth_method: "direct_email_password",
+          status: "SUCCESS",
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
+        })
+      } catch {
+        // Non-blocking telemetry insert
+      }
 
-      handleAuthComplete({ phone: cleanPhone, email: user.email })
+      handleAuthComplete({ email: user.email || lowerInput, phone: user.phone_number || user.email })
     } catch (err: any) {
-      setSignInError(err.message || "Sign in failed. Check network connectivity.")
+      setSignInError(err.message || "Sign in failed. Check your network connection.")
     } finally {
       setSignInLoading(false)
     }
   }
 
-  // --- SIGN UP STEP 1: SEND REAL OTP VIA SUPABASE ---
-  const handleSendRealOtp = async (e: React.FormEvent) => {
+  // ─── SIGN UP STEP 1: VERIFY & ADVANCE TO PASSWORD CREATION ───
+  const handleProceedToPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignUpError("")
 
-    if (!isValidIndianPhone(signUpPhone)) {
-      setSignUpError("Please enter a valid 10-digit phone number starting with +91.")
-      return
-    }
-
-    if (!isValidGmail(signUpEmail)) {
-      setSignUpError("Email must be a valid @gmail.com address (e.g. yourname@gmail.com).")
+    const cleanEmail = signUpEmail.trim().toLowerCase()
+    if (!isValidEmail(cleanEmail)) {
+      setSignUpError("Please enter a valid email address (e.g. name@company.com or name@gmail.com).")
       return
     }
 
     setSignUpLoading(true)
 
     try {
-      const cleanEmail = signUpEmail.trim().toLowerCase()
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from("users_profile")
+        .select("id, email")
+        .eq("email", cleanEmail)
+        .maybeSingle()
 
-      // Trigger guaranteed 6-digit OTP dispatch via backend
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, phone: signUpPhone }),
-      })
-      const result = await res.json()
-
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Failed to dispatch verification OTP.")
+      if (existingUser) {
+        setSignUpError("An account with this email already exists. Please switch to Sign In.")
+        setSignUpLoading(false)
+        return
       }
 
-      setOtpSentMessage(result.message || `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox and spam folder.`)
-      setSignUpStep("otp")
-      setResendCooldown(60)
-
-      const timer = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } catch (err: any) {
-      setSignUpError(err.message || "Failed to dispatch verification OTP.")
-    } finally {
-      setSignUpLoading(false)
-    }
-  }
-
-  // --- SIGN UP STEP 2: VERIFY REAL OTP VIA SUPABASE ---
-  const handleVerifyRealOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSignUpError("")
-
-    if (!enteredOtp || enteredOtp.trim().length < 6) {
-      setSignUpError("Please enter the complete 6-digit OTP code received in your email.")
-      return
-    }
-
-    setSignUpLoading(true)
-
-    try {
-      const cleanEmail = signUpEmail.trim().toLowerCase()
-
-      // Verify the 6-digit OTP against database & Supabase Auth
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, otpCode: enteredOtp.trim() }),
-      })
-      const result = await res.json()
-
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Invalid or expired OTP. Please re-check the 6-digit code sent to your Gmail.")
-      }
-
-      // Successfully verified real OTP! Move to password creation
+      // Smoothly advance directly to password creation — NO OTP REQUIRED!
       setSignUpStep("password")
     } catch (err: any) {
-      setSignUpError(err.message || "OTP verification failed.")
+      setSignUpError(err.message || "Failed to process email. Please try again.")
     } finally {
       setSignUpLoading(false)
     }
   }
 
-  // --- SIGN UP STEP 3: SET PASSWORD & FINALIZE ---
+  // ─── SIGN UP STEP 2: CREATE PASSWORD & COMPLETE SIGNUP ───
   const handleFinalizeSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignUpError("")
 
     if (!isValidPassword(newPassword)) {
-      setSignUpError("Password must be at least 6 alphanumeric characters (must include letters and digits).")
+      setSignUpError("Password must be at least 6 alphanumeric characters (must include letters and numbers).")
       return
     }
 
@@ -255,33 +199,50 @@ export default function AuthPage() {
     setSignUpLoading(true)
 
     try {
-      const cleanPhone = signUpPhone.replace(/\s+/g, "")
       const cleanEmail = signUpEmail.trim().toLowerCase()
 
-      // Upsert user into public.users_profile in Supabase
-      const { error: profileError } = await supabase.from("users_profile").upsert({
-        phone_number: cleanPhone,
+      // Insert new user into public.users_profile in Supabase
+      const { error: profileError } = await supabase.from("users_profile").insert({
         email: cleanEmail,
+        phone_number: cleanEmail,
         password_hash: newPassword,
-        verified_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
 
       if (profileError) {
-        throw profileError
+        // If profile already exists, attempt update
+        if (profileError.code === "23505") {
+          const { error: updateError } = await supabase
+            .from("users_profile")
+            .update({
+              password_hash: newPassword,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("email", cleanEmail)
+
+          if (updateError) throw updateError
+        } else {
+          throw profileError
+        }
       }
 
-      // Record successful signup entry in Supabase
-      await supabase.from("login_entries").insert({
-        phone_number: cleanPhone,
-        email: cleanEmail,
-        auth_method: "phone_email_otp_password",
-        status: "SUCCESS",
-        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
-      })
+      // Record successful signup telemetry
+      try {
+        await supabase.from("login_entries").insert({
+          email: cleanEmail,
+          phone_number: cleanEmail,
+          auth_method: "direct_email_signup",
+          status: "SUCCESS",
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "browser",
+        })
+      } catch {
+        // Non-blocking telemetry
+      }
 
-      handleAuthComplete({ phone: cleanPhone, email: cleanEmail })
+      handleAuthComplete({ email: cleanEmail, phone: cleanEmail })
     } catch (err: any) {
-      setSignUpError(err.message || "Failed to create account.")
+      setSignUpError(err.message || "Failed to create account. Please try again.")
     } finally {
       setSignUpLoading(false)
     }
@@ -293,22 +254,22 @@ export default function AuthPage() {
       <div className="absolute left-6 top-6 z-50 flex items-center gap-4">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-semibold text-zinc-300 backdrop-blur-md transition-colors hover:border-[#d4af37]/50 hover:text-white"
+          className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs font-semibold text-zinc-300 backdrop-blur-md transition-colors hover:border-[#ff2a8d]/60 hover:text-white"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 text-[#ff2a8d]" />
           <span>Back to Landing</span>
         </Link>
         <div className="hidden items-center gap-2 font-mono text-xs text-zinc-500 sm:flex">
           <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-pulse" />
-          <span>TRI-NETRA SECURITY GATEWAY</span>
+          <span>त्रिNETRA SECURITY GATEWAY</span>
         </div>
       </div>
 
       {/* ─── LEFT HALF: SPLINE 3D MODEL WITH CURSOR TRACKING ─── */}
-      <div className="relative flex h-[45vh] w-full flex-col justify-between overflow-hidden border-b border-white/10 bg-black/90 lg:h-screen lg:w-1/2 lg:border-b-0 lg:border-r">
-        {/* Subtle Ambient Lighting */}
+      <div className="relative flex h-[40vh] w-full flex-col justify-between overflow-hidden border-b border-white/10 bg-black/90 lg:h-screen lg:w-1/2 lg:border-b-0 lg:border-r">
+        {/* Subtle Ambient Glow */}
         <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#ff2a8d]/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#d4af37]/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#e5ff40]/10 blur-3xl" />
 
         {/* Spline 3D Scene */}
         <div className="relative h-full w-full">
@@ -317,18 +278,31 @@ export default function AuthPage() {
             className="h-full w-full"
           />
         </div>
+
+        {/* Bottom Feature Teaser */}
+        <div className="pointer-events-none absolute bottom-6 left-6 right-6 hidden lg:block rounded-2xl border border-white/10 bg-[#050505]/80 backdrop-blur-md p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-ping" />
+            <span className="font-mono text-xs uppercase tracking-wider text-[#ff2a8d] font-bold">
+              Autonomous Cyber Defense Grid
+            </span>
+          </div>
+          <p className="text-xs text-neutral-400">
+            Real-time QR payee forensics, TinyFish honeypot inspection, and HDBSCAN fraud clustering.
+          </p>
+        </div>
       </div>
 
       {/* ─── RIGHT HALF: LOGIN / SIGNUP INTERFACE ─── */}
-      <div className="relative flex min-h-[55vh] w-full items-center justify-center p-6 sm:p-12 lg:h-screen lg:w-1/2">
+      <div className="relative flex min-h-[60vh] w-full items-center justify-center p-6 sm:p-12 lg:h-screen lg:w-1/2">
         <div className="w-full max-w-md">
           {/* Header Branding */}
           <div className="mb-8 text-center sm:text-left">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3.5 py-1 text-xs font-mono text-[#d4af37]">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>SUPABASE VERIFIED ACCESS</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#ff2a8d]/30 bg-[#ff2a8d]/10 px-3.5 py-1 text-xs font-mono text-[#ff2a8d]">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#e5ff40]" />
+              <span>DIRECT EMAIL ACCESS &bull; NO OTP REQUIRED</span>
             </div>
-            <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl">
+            <h1 className="mt-3 text-3xl font-black text-white sm:text-4xl tracking-tight">
               त्रिNETRA Portal
             </h1>
             <p className="mt-1 text-xs text-zinc-400">
@@ -339,21 +313,21 @@ export default function AuthPage() {
           {/* Success Screen after authentication */}
           {authSuccess ? (
             <div className="rounded-2xl border border-[#e5ff40]/40 bg-zinc-950/90 p-8 text-center shadow-2xl backdrop-blur-xl">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e5ff40]/20 text-[#e5ff40]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e5ff40]/20 text-[#e5ff40] shadow-[0_0_25px_rgba(229,255,64,0.4)]">
                 <CheckCircle2 className="h-8 w-8 animate-pulse" />
               </div>
               <h3 className="mt-4 text-xl font-bold text-white">Authentication Verified</h3>
               <p className="mt-2 text-xs text-zinc-400">
-                Credentials authorized. Synchronizing with TriNETRA Sentinel Network...
+                Credentials authorized. Synchronizing with त्रिNETRA Sentinel Network...
               </p>
-              <div className="mt-6 flex items-center justify-center gap-2 text-xs font-mono text-[#d4af37]">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#d4af37] border-t-transparent" />
-                <span>Redirecting to Storytelling Exhibition...</span>
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs font-mono text-[#e5ff40]">
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#e5ff40] border-t-transparent" />
+                <span>Redirecting to Sentinel Scanner...</span>
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-zinc-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-              {/* Tab Selector: Sign In vs Sign Up */}
+            <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+              {/* Tab Selector: Direct Sign In vs Sign Up */}
               <div className="mb-6 grid grid-cols-2 rounded-xl bg-black/60 p-1 ring-1 ring-white/10">
                 <button
                   type="button"
@@ -361,9 +335,9 @@ export default function AuthPage() {
                     setActiveTab("signin")
                     setSignInError("")
                   }}
-                  className={`rounded-lg py-2 text-xs font-bold transition-all ${
+                  className={`rounded-lg py-2.5 text-xs font-bold transition-all cursor-pointer ${
                     activeTab === "signin"
-                      ? "bg-gradient-to-r from-[#d4af37] to-[#b38f2a] text-black shadow-md"
+                      ? "bg-[#ff2a8d] text-white shadow-md shadow-[#ff2a8d]/30"
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -373,11 +347,12 @@ export default function AuthPage() {
                   type="button"
                   onClick={() => {
                     setActiveTab("signup")
+                    setSignUpStep("email")
                     setSignUpError("")
                   }}
-                  className={`rounded-lg py-2 text-xs font-bold transition-all ${
+                  className={`rounded-lg py-2.5 text-xs font-bold transition-all cursor-pointer ${
                     activeTab === "signup"
-                      ? "bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] text-white shadow-md shadow-[#ff2a8d]/20"
+                      ? "bg-gradient-to-r from-[#e5ff40] to-[#c7e030] text-black shadow-md shadow-[#e5ff40]/20"
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
@@ -385,42 +360,44 @@ export default function AuthPage() {
                 </button>
               </div>
 
-              {/* ─── TAB 1: SIGN IN ─── */}
+              {/* ─── TAB 1: DIRECT EMAIL SIGN IN ─── */}
               {activeTab === "signin" && (
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div>
-                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                      <Phone className="h-3.5 w-3.5 text-[#d4af37]" />
-                      <span>Mobile Number (+91)</span>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
+                      <Mail className="h-3.5 w-3.5 text-[#ff2a8d]" />
+                      <span>Email Address</span>
                     </label>
                     <input
-                      type="tel"
-                      value={signInPhone}
-                      onChange={(e) => handlePhoneChange(e.target.value, setSignInPhone)}
-                      placeholder="+91 9876543210"
-                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 font-mono text-sm text-white outline-none transition-colors focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]"
+                      type="text"
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                      <Lock className="h-3.5 w-3.5 text-[#d4af37]" />
-                      <span>Password</span>
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-semibold text-zinc-300">
+                      <span className="flex items-center gap-1.5">
+                        <Lock className="h-3.5 w-3.5 text-[#ff2a8d]" />
+                        <span>Password</span>
+                      </span>
                     </label>
                     <div className="relative">
                       <input
                         type={showSignInPass ? "text" : "password"}
                         value={signInPassword}
                         onChange={(e) => setSignInPassword(e.target.value)}
-                        placeholder="Enter your alphanumeric password"
-                        className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]"
+                        placeholder="Enter your account password"
+                        className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowSignInPass(!showSignInPass)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
                       >
                         {showSignInPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -437,7 +414,7 @@ export default function AuthPage() {
                   <button
                     type="submit"
                     disabled={signInLoading}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#e5c158] to-[#d4af37] py-3.5 text-sm font-bold text-black shadow-lg shadow-[#d4af37]/20 transition-all hover:opacity-95 disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff2a8d]/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
                     {signInLoading ? (
                       <>
@@ -445,7 +422,7 @@ export default function AuthPage() {
                       </>
                     ) : (
                       <>
-                        <span>Sign In to Sentinel</span>
+                        <span>Sign In to त्रिNETRA</span>
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
@@ -454,66 +431,51 @@ export default function AuthPage() {
                   <div className="pt-2 text-center">
                     <button
                       type="button"
-                      onClick={() => setActiveTab("signup")}
-                      className="text-xs text-zinc-400 hover:text-[#d4af37]"
+                      onClick={() => {
+                        setActiveTab("signup")
+                        setSignUpStep("email")
+                      }}
+                      className="text-xs text-zinc-400 hover:text-[#ff2a8d] transition-colors cursor-pointer"
                     >
-                      Don&apos;t have an account? <span className="font-semibold underline">Register with Real OTP</span>
+                      New to त्रिNETRA? <span className="font-semibold text-white underline">Create Account in Seconds</span>
                     </button>
                   </div>
                 </form>
               )}
 
-              {/* ─── TAB 2: SIGN UP ─── */}
+              {/* ─── TAB 2: DIRECT EMAIL SIGN UP (NO OTP) ─── */}
               {activeTab === "signup" && (
                 <div>
                   {/* Step Progress Indicators */}
                   <div className="mb-5 flex items-center justify-between border-b border-white/10 pb-3 text-[11px] font-mono">
-                    <span className={signUpStep === "details" ? "font-bold text-[#ff2a8d]" : "text-zinc-500"}>
-                      1. Contact
+                    <span className={signUpStep === "email" ? "font-bold text-[#e5ff40]" : "text-zinc-500"}>
+                      1. Email Address
                     </span>
-                    <span className="text-zinc-700">&gt;</span>
-                    <span className={signUpStep === "otp" ? "font-bold text-[#ff2a8d]" : "text-zinc-500"}>
-                      2. Supabase OTP
-                    </span>
-                    <span className="text-zinc-700">&gt;</span>
-                    <span className={signUpStep === "password" ? "font-bold text-[#ff2a8d]" : "text-zinc-500"}>
-                      3. Password
+                    <span className="text-zinc-600">&rarr;</span>
+                    <span className={signUpStep === "password" ? "font-bold text-[#e5ff40]" : "text-zinc-500"}>
+                      2. Create Password
                     </span>
                   </div>
 
-                  {/* Step 1: Details (Phone + Gmail) */}
-                  {signUpStep === "details" && (
-                    <form onSubmit={handleSendRealOtp} className="space-y-4">
+                  {/* Step 1: Direct Email Input */}
+                  {signUpStep === "email" && (
+                    <form onSubmit={handleProceedToPassword} className="space-y-4">
                       <div>
-                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                          <Phone className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                          <span>Mobile Number (+91)</span>
-                        </label>
-                        <input
-                          type="tel"
-                          value={signUpPhone}
-                          onChange={(e) => handlePhoneChange(e.target.value, setSignUpPhone)}
-                          placeholder="+91 9876543210"
-                          className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 font-mono text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                          <Mail className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                          <span>Gmail Address (@gmail.com)</span>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
+                          <Mail className="h-3.5 w-3.5 text-[#e5ff40]" />
+                          <span>Email Address</span>
                         </label>
                         <input
                           type="email"
                           value={signUpEmail}
                           onChange={(e) => setSignUpEmail(e.target.value)}
-                          placeholder="yourname@gmail.com"
-                          className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
+                          placeholder="name@example.com or name@gmail.com"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#e5ff40] focus:ring-1 focus:ring-[#e5ff40]"
                           required
+                          autoFocus
                         />
-                        <span className="mt-1 block text-[10px] text-zinc-500">
-                          * Constraint: Strictly valid @gmail.com accounts only.
+                        <span className="mt-1 block text-[10px] text-zinc-400 font-mono">
+                          Direct sign up &bull; No email OTP required &bull; Instant activation
                         </span>
                       </div>
 
@@ -527,50 +489,112 @@ export default function AuthPage() {
                       <button
                         type="submit"
                         disabled={signUpLoading}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff2a8d]/25 transition-all hover:opacity-95 disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e5ff40] to-[#c7e030] py-3.5 text-sm font-bold text-black shadow-lg shadow-[#e5ff40]/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                       >
                         {signUpLoading ? (
                           <>
-                            <RefreshCw className="h-4 w-4 animate-spin" /> Dispatching Supabase OTP...
+                            <RefreshCw className="h-4 w-4 animate-spin text-black" /> Checking Email...
                           </>
                         ) : (
                           <>
-                            <span>Send Real Verification OTP</span>
-                            <ArrowRight className="h-4 w-4" />
+                            <span>Continue to Create Password</span>
+                            <ArrowRight className="h-4 w-4 text-black" />
                           </>
                         )}
                       </button>
+
+                      <div className="pt-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("signin")}
+                          className="text-xs text-zinc-400 hover:text-[#e5ff40] transition-colors cursor-pointer"
+                        >
+                          Already have an account? <span className="font-semibold text-white underline">Sign In</span>
+                        </button>
+                      </div>
                     </form>
                   )}
 
-                  {/* Step 2: Real Supabase OTP Verification */}
-                  {signUpStep === "otp" && (
-                    <form onSubmit={handleVerifyRealOtp} className="space-y-4">
-                      {otpSentMessage && (
-                        <div className="flex items-start gap-2 rounded-lg border border-[#e5ff40]/30 bg-[#e5ff40]/10 p-3 text-xs text-[#e5ff40]">
-                          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span>{otpSentMessage}</span>
+                  {/* Step 2: Create Password & Finalize Account */}
+                  {signUpStep === "password" && (
+                    <form onSubmit={handleFinalizeSignUp} className="space-y-4">
+                      {/* Active Email Chip with Change Action */}
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <UserCheck className="h-4 w-4 text-[#e5ff40] shrink-0" />
+                          <span className="truncate text-xs font-mono text-zinc-200">
+                            {signUpEmail}
+                          </span>
                         </div>
-                      )}
-
+                        <button
+                          type="button"
+                          onClick={() => setSignUpStep("email")}
+                          className="text-[11px] font-mono text-[#ff2a8d] hover:underline cursor-pointer shrink-0 ml-2"
+                        >
+                          Change
+                        </button>
+                      </div>
 
                       <div>
-                        <label className="mb-1.5 flex items-center justify-between text-xs font-medium text-zinc-300">
-                          <span className="flex items-center gap-1.5">
-                            <KeyRound className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                            <span>Enter 6-Digit Verification Code</span>
-                          </span>
-                          <span className="font-mono text-[10px] text-zinc-500">Sent to Gmail</span>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
+                          <Lock className="h-3.5 w-3.5 text-[#e5ff40]" />
+                          <span>Create Password (Min 6 Alphanumeric)</span>
                         </label>
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={enteredOtp}
-                          onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ""))}
-                          placeholder="123456"
-                          className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-center font-mono text-xl tracking-[0.4em] text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
-                          required
-                        />
+                        <div className="relative">
+                          <input
+                            type={showNewPass ? "text" : "password"}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="e.g. Sentinel99"
+                            className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#e5ff40] focus:ring-1 focus:ring-[#e5ff40]"
+                            required
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPass(!showNewPass)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-[#e5ff40]" />
+                          <span>Confirm Password</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPass ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Re-enter password to confirm"
+                            className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#e5ff40] focus:ring-1 focus:ring-[#e5ff40]"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPass(!showConfirmPass)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Password validation indicators */}
+                      <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                        <span className={`px-2 py-0.5 rounded-full border ${newPassword.length >= 6 ? "border-[#e5ff40]/40 bg-[#e5ff40]/10 text-[#e5ff40]" : "border-white/10 text-zinc-500"}`}>
+                          &bull; 6+ chars
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full border ${isValidPassword(newPassword) ? "border-[#e5ff40]/40 bg-[#e5ff40]/10 text-[#e5ff40]" : "border-white/10 text-zinc-500"}`}>
+                          &bull; Letters &amp; numbers
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full border ${newPassword && newPassword === confirmPassword ? "border-[#e5ff40]/40 bg-[#e5ff40]/10 text-[#e5ff40]" : "border-white/10 text-zinc-500"}`}>
+                          &bull; Match
+                        </span>
                       </div>
 
                       {signUpError && (
@@ -583,120 +607,28 @@ export default function AuthPage() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setSignUpStep("details")}
-                          className="rounded-xl border border-white/10 px-4 py-3 text-xs font-semibold text-zinc-400 hover:bg-white/5"
+                          onClick={() => setSignUpStep("email")}
+                          className="rounded-xl border border-white/10 px-4 py-3 text-xs font-semibold text-zinc-400 hover:bg-white/5 cursor-pointer"
                         >
                           Back
                         </button>
                         <button
                           type="submit"
                           disabled={signUpLoading}
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff2a8d]/25 transition-all hover:opacity-95 disabled:opacity-50"
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e5ff40] to-[#c7e030] py-3.5 text-sm font-bold text-black shadow-lg shadow-[#e5ff40]/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                         >
                           {signUpLoading ? (
                             <>
-                              <RefreshCw className="h-4 w-4 animate-spin" /> Verifying...
+                              <RefreshCw className="h-4 w-4 animate-spin text-black" /> Creating Profile...
                             </>
                           ) : (
                             <>
-                              <ShieldCheck className="h-4 w-4" /> Verify Real OTP
+                              <span>Launch Defense Grid</span>
+                              <Sparkles className="h-4 w-4 text-black" />
                             </>
                           )}
                         </button>
                       </div>
-
-                      <div className="text-center">
-                        {resendCooldown > 0 ? (
-                          <span className="font-mono text-xs text-zinc-500">
-                            Resend code in {resendCooldown}s
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleSendRealOtp}
-                            className="font-mono text-xs text-[#ff2a8d] hover:underline"
-                          >
-                            Resend Verification Code
-                          </button>
-                        )}
-                      </div>
-                    </form>
-                  )}
-
-                  {/* Step 3: Password Creation */}
-                  {signUpStep === "password" && (
-                    <form onSubmit={handleFinalizeSignUp} className="space-y-4">
-                      <div>
-                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                          <Lock className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                          <span>Create Password (Min 6 Alphanumeric)</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showNewPass ? "text" : "password"}
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="e.g. Sentinel99"
-                            className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
-                            required
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPass(!showNewPass)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                          >
-                            {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-[#ff2a8d]" />
-                          <span>Confirm Password</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showConfirmPass ? "text" : "password"}
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Re-enter password"
-                            className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 pr-10 text-sm text-white outline-none transition-colors focus:border-[#ff2a8d] focus:ring-1 focus:ring-[#ff2a8d]"
-                            required
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPass(!showConfirmPass)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                          >
-                            {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {signUpError && (
-                        <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
-                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <span>{signUpError}</span>
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        disabled={signUpLoading}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff2a8d] to-[#ff0055] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff2a8d]/25 transition-all hover:opacity-95 disabled:opacity-50"
-                      >
-                        {signUpLoading ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 animate-spin" /> Registering in Supabase...
-                          </>
-                        ) : (
-                          <>
-                            <span>Complete Registration & Launch Story</span>
-                            <ArrowRight className="h-4 w-4" />
-                          </>
-                        )}
-                      </button>
                     </form>
                   )}
                 </div>

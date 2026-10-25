@@ -3,7 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mrviyqlwcfqlnifcvftg.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydml5cWx3Y2ZxbG5pZmN2ZnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzA0MDcsImV4cCI6MjEwODQwNjQwN30.HqgGdOvnveEcAqoupy-8gNTTQ2oGNDqnIgIG8F0VM74";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 

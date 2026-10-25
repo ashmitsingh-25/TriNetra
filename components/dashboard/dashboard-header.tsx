@@ -23,7 +23,7 @@ export type TabKey = "overview" | "scanner" | "tinyfish" | "transaction-dna" | "
 interface DashboardHeaderProps {
   activeTab: TabKey
   onSelectTab: (tab: TabKey) => void
-  currentUser: { phone: string; email?: string } | null
+  currentUser: { email?: string; phone?: string } | null
   onSignOut: () => void
   onOpenAuthGate: (tab: TabKey) => void
 }
@@ -184,7 +184,7 @@ export default function DashboardHeader({
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
                 <User className="h-3.5 w-3.5" />
-                <span>{currentUser.phone}</span>
+                <span>{currentUser.email || currentUser.phone}</span>
               </div>
               <button
                 onClick={onSignOut}

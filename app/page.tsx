@@ -50,7 +50,7 @@ const TRINETRA_ABOUT_STEPS: FeatureStep[] = [
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview")
-  const [currentUser, setCurrentUser] = useState<{ phone: string; email?: string } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ email?: string; phone?: string } | null>(null)
   const [authGateOpen, setAuthGateOpen] = useState(false)
   const [gateTargetTab, setGateTargetTab] = useState<string>("Intel")
 
@@ -219,7 +219,7 @@ export default function Home() {
                     </button>
                     <div className="flex items-center gap-2 rounded-full border border-[#e5ff40]/40 bg-[#e5ff40]/10 px-3.5 py-1.5 text-xs font-bold text-[#e5ff40]">
                       <User className="h-3.5 w-3.5" />
-                      <span>{currentUser.phone}</span>
+                      <span>{currentUser.email || currentUser.phone}</span>
                     </div>
                     <button
                       onClick={handleSignOut}
