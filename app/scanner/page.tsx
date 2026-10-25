@@ -919,21 +919,7 @@ export default function ScannerPage() {
                     )}
                   </button>
 
-                  <button
-                    onClick={handleCyclePreset}
-                    className="w-full sm:w-auto font-mono text-xs font-bold text-[#e5ff40] hover:text-[#d4ed36] px-2 py-2 flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <span>Try live scam example</span>
-                    <span>&rarr;</span>
-                  </button>
                 </div>
-
-                {/* Current active preset indicator */}
-                {activeSampleName && (
-                  <p className="text-[11px] font-mono text-neutral-500">
-                    Live sample: <span className="text-neutral-400">{activeSampleName}</span>
-                  </p>
-                )}
               </div>
             </div>
 
