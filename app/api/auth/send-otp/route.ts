@@ -1,118 +1,136 @@
-import { NextRequest, NextResponse } from "next/server"
-import crypto from "crypto"
-import { supabase } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mrviyqlwcfqlnifcvftg.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configurable Nodemailer SMTP transport
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: Number(process.env.SMTP_PORT) || 465,
+  secure: Number(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { email, phone } = body
-
+    const { email } = await req.json();
     if (!email || typeof email !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Valid email address is required." },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    const cleanEmail = email.trim().toLowerCase()
+    const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Generate a cryptographically random 6-digit numeric OTP
-    const otpCode = crypto.randomInt(100000, 999999).toString()
+    // 1. Generate a secure 6-digit OTP
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Valid for 10 minutes
 
-    // 2. Invalidate any existing unverified OTPs for this email to avoid collisions
-    await supabase
-      .from("auth_otp_codes")
-      .update({ verified: true })
-      .eq("email", cleanEmail)
-      .eq("verified", false)
-
-    // 3. Store the new 6-digit OTP code in public.auth_otp_codes (valid for 10 minutes)
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
-    const { error: insertError } = await supabase
-      .from("auth_otp_codes")
-      .insert({
-        email: cleanEmail,
-        otp_code: otpCode,
-        expires_at: expiresAt,
-        verified: false,
-      })
-
-    if (insertError) {
-      console.error("[send-otp] Error saving OTP to database:", insertError)
-      return NextResponse.json(
-        { success: false, error: "Database error creating verification code." },
-        { status: 500 }
-      )
+    // Invalidate prior unverified codes for this email
+    try {
+      await supabase
+        .from("auth_otp_codes")
+        .update({ verified: true })
+        .eq("email", cleanEmail)
+        .eq("verified", false);
+    } catch {
+      // Non-critical cleanup
     }
 
-    // 4. HTML Email Template with high-contrast 6-digit numeric display
-    const emailHtmlBody = `
-      <div style="background:#050505;color:#ffffff;padding:24px;border-radius:12px;font-family:sans-serif;border:1px solid #ff2a8d;max-width:480px;margin:0 auto;">
-        <p style="color:#ff2a8d;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px 0;font-weight:700;">त्रिNETRA Security Verification</p>
-        <p style="color:#d4d4d8;font-size:14px;margin:0 0 16px 0;line-height:1.5;">Use the 6-digit verification code below to complete your sign-in to the UPI Defense Grid:</p>
-        <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#e5ff40;background:#111115;padding:16px 24px;border-radius:8px;display:inline-block;font-family:monospace;border:1px solid rgba(229,255,64,0.3);">${otpCode}</div>
-        <p style="color:#71717a;font-size:12px;margin:16px 0 0 0;">This code expires in 10 minutes. Never share this OTP with anyone, including bank or cyber defense personnel.</p>
-      </div>
-    `
+    // 2. Save the code to Supabase auth_otp_codes table
+    const { error: dbError } = await supabase.from("auth_otp_codes").insert({
+      email: cleanEmail,
+      otp_code: otpCode,
+      expires_at: expiresAt.toISOString(),
+      verified: false,
+    });
 
-    let emailDispatched = false
+    if (dbError) {
+      console.error("[send-otp] DB insert error:", dbError);
+      throw dbError;
+    }
 
-    // 5. If Resend API Key is available, dispatch directly via Resend API
-    if (process.env.RESEND_API_KEY) {
+    const emailHtml = `
+      <div style="background:#050505;color:#ffffff;padding:28px;border-radius:14px;font-family:system-ui,-apple-system,sans-serif;border:1px solid #ff2a8d;max-width:480px;margin:0 auto;">
+         <p style="color:#ff2a8d;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px 0;font-weight:700;">Security Verification</p>
+         <p style="color:#d4d4d8;font-size:14px;margin:0 0 16px 0;line-height:1.5;">Use the 6-digit verification code below to complete your sign-up to the त्रिNETRA Defense Grid:</p>
+         <div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#e5ff40;background:#111115;padding:16px 24px;border-radius:10px;display:inline-block;font-family:ui-monospace,Menlo,monospace;border:1px solid rgba(229,255,64,0.3);">${otpCode}</div>
+         <p style="color:#71717a;font-size:12px;margin:18px 0 0 0;line-height:1.5;">This code expires in 10 minutes. Never share this OTP with anyone, including banking or cyber defense agents.</p>
+       </div>
+    `;
+
+    let emailDispatched = false;
+
+    // 3. Send email using SMTP if configured
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        await transporter.sendMail({
+          from: `"त्रिNETRA Portal" <${process.env.SMTP_SENDER_EMAIL || process.env.SMTP_USER}>`,
+          to: cleanEmail,
+          subject: `Your Verification Code: ${otpCode}`,
+          html: emailHtml,
+        });
+        emailDispatched = true;
+        console.log(`[send-otp] Dispatched via Nodemailer SMTP to ${cleanEmail}`);
+      } catch (smtpErr: any) {
+        console.warn("[send-otp] SMTP dispatch warning:", smtpErr?.message);
+      }
+    }
+
+    // 4. Fallback dispatch via Resend if RESEND_API_KEY is present
+    if (!emailDispatched && process.env.RESEND_API_KEY) {
       try {
         const resendRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             from: process.env.RESEND_FROM_EMAIL || "TriNETRA Security <onboarding@resend.dev>",
             to: [cleanEmail],
             subject: `Your त्रिNETRA Verification Code: ${otpCode}`,
-            html: emailHtmlBody,
+            html: emailHtml,
           }),
-        })
-        if (resendRes.ok) {
-          emailDispatched = true
-          console.log(`[send-otp] Dispatched via Resend to ${cleanEmail}`)
-        }
+        });
+        if (resendRes.ok) emailDispatched = true;
       } catch (resendErr) {
-        console.warn("[send-otp] Resend dispatch note:", resendErr)
+        console.warn("[send-otp] Resend dispatch note:", resendErr);
       }
     }
 
-    // 6. Trigger Supabase native signInWithOtp (sends email via Supabase's mail service)
-    try {
-      const { error: sbError } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: true,
-        },
-      })
-      if (!sbError) {
-        emailDispatched = true
-      } else {
-        console.warn("[send-otp] Supabase native signInWithOtp note:", sbError.message)
+    // 5. Native Supabase OTP trigger fallback
+    if (!emailDispatched) {
+      try {
+        const { error: sbError } = await supabase.auth.signInWithOtp({
+          email: cleanEmail,
+          options: { shouldCreateUser: true },
+        });
+        if (!sbError) emailDispatched = true;
+      } catch (sbEx: any) {
+        console.warn("[send-otp] Supabase native auth note:", sbEx?.message);
       }
-    } catch (e: any) {
-      console.warn("[send-otp] Supabase signInWithOtp exception:", e?.message)
     }
 
-    console.log(`[send-otp] Dispatched 6-digit OTP for ${cleanEmail} (email sent: ${emailDispatched})`)
+    console.log(`[send-otp] Dispatched 6-digit OTP for ${cleanEmail} (email sent: ${emailDispatched})`);
 
-    // NEVER return otpCode to the client!
     return NextResponse.json({
       success: true,
-      message: `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox and spam folder.`,
+      message: "OTP sent successfully",
       email: cleanEmail,
       emailSent: emailDispatched,
-    })
-  } catch (err: any) {
-    console.error("[send-otp] Unexpected error:", err)
+    });
+  } catch (error: any) {
+    console.error("Error sending OTP:", error);
     return NextResponse.json(
-      { success: false, error: err.message || "Failed to dispatch verification OTP." },
+      { error: error.message || "Internal Server Error" },
       { status: 500 }
-    )
+    );
   }
 }

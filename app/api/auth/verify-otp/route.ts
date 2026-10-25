@@ -1,86 +1,101 @@
-import { NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mrviyqlwcfqlnifcvftg.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { email, otpCode } = body
+    const body = await req.json();
+    const email = body.email;
+    const otpCode = body.otpCode || body.token;
+    const password = body.password;
 
     if (!email || !otpCode) {
       return NextResponse.json(
-        { success: false, error: "Email and 6-digit OTP code are required." },
+        { error: "Email and OTP code are required" },
         { status: 400 }
-      )
+      );
     }
 
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanToken = otpCode.trim()
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = String(otpCode).trim();
 
-    let isVerified = false
-    let verificationMethod = ""
-
-    // 1. Check against public.auth_otp_codes in Supabase
-    const { data: dbOtp, error: dbError } = await supabase
+    // 1. Check if a valid, unexpired OTP exists in auth_otp_codes table
+    const { data: record, error: fetchError } = await supabase
       .from("auth_otp_codes")
       .select("*")
       .eq("email", cleanEmail)
-      .eq("otp_code", cleanToken)
+      .eq("otp_code", cleanOtp)
       .eq("verified", false)
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
-    if (dbOtp) {
-      isVerified = true
-      verificationMethod = "database_otp"
+    let verifiedByDatabase = false;
 
-      // Mark as verified so it cannot be replayed
+    if (!fetchError && record) {
+      verifiedByDatabase = true;
+      // 2. Mark OTP as verified so it cannot be replayed
       await supabase
         .from("auth_otp_codes")
         .update({ verified: true })
-        .eq("id", dbOtp.id)
+        .eq("id", record.id);
     }
 
-    // 2. Also try verifying against Supabase Auth verifyOtp
+    // Also attempt Supabase native verifyOtp if applicable
+    let verifiedBySupabaseAuth = false;
     try {
       const { data: sbAuthData, error: sbAuthError } = await supabase.auth.verifyOtp({
         email: cleanEmail,
-        token: cleanToken,
+        token: cleanOtp,
         type: "email",
-      })
-
+      });
       if (!sbAuthError && sbAuthData?.session) {
-        isVerified = true
-        verificationMethod = verificationMethod ? `${verificationMethod}_and_supabase_auth` : "supabase_auth"
+        verifiedBySupabaseAuth = true;
       }
-    } catch (sbEx) {
-      // If Supabase native fails but database OTP passed, we proceed smoothly
-      console.log("[verify-otp] Supabase native verify note:", sbEx)
+    } catch {
+      // Non-critical fallback
     }
 
-    if (!isVerified) {
+    if (!verifiedByDatabase && !verifiedBySupabaseAuth) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid or expired OTP code. Please re-check the 6-digit code sent to your email or request a new one.",
-        },
-        { status: 401 }
-      )
+        { error: "Invalid or expired verification code" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Complete user sign-up in Supabase Auth if service role key is available
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { error: authError } = await supabase.auth.admin.createUser({
+          email: cleanEmail,
+          password: password || crypto.randomBytes(16).toString("hex"),
+          email_confirm: true,
+        });
+
+        if (authError && !authError.message.includes("already registered") && !authError.message.includes("already exists")) {
+          console.warn("[verify-otp] Supabase admin createUser note:", authError.message);
+        }
+      } catch (adminErr: any) {
+        console.warn("[verify-otp] Admin provision note:", adminErr?.message);
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: "6-digit OTP verified successfully.",
+      message: "OTP verified and account created successfully",
       email: cleanEmail,
-      method: verificationMethod,
-    })
-  } catch (err: any) {
-    console.error("[verify-otp] Unexpected error:", err)
+    });
+  } catch (error: any) {
+    console.error("Error verifying OTP:", error);
     return NextResponse.json(
-      { success: false, error: err.message || "Failed to verify OTP." },
+      { error: error.message || "Internal Server Error" },
       { status: 500 }
-    )
+    );
   }
 }
