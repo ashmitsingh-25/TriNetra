@@ -6,7 +6,7 @@ import { MessageSquare, Sparkles, X, ShieldAlert, Bot, User } from "lucide-react
 import { MetalPromptBar } from "@/components/ui/metal-prompt-bar";
 import { cn } from "@/lib/utils";
 
-// Dynamically load Spline on client to avoid SSR hydration issues while loading the exact scene
+// Dynamically load Spline on client to avoid SSR hydration issues
 const Spline = dynamic(() => import("@splinetool/react-spline"), {
   ssr: false,
   loading: () => (
@@ -24,10 +24,44 @@ interface ChatMessage {
   mode?: string;
 }
 
+// Error Boundary for the 3D Spline canvas to guarantee zero component crashes
+class SplineErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.warn("Spline 3D Scene notice:", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center bg-[#07070c] p-6 text-center">
+          <ShieldAlert className="h-10 w-10 text-[#ff2a8d] mb-3" />
+          <h4 className="font-mono text-xs uppercase tracking-wider text-[#e5ff40] font-bold mb-1">
+            त्रिNETRA // NEURAL RADAR
+          </h4>
+          <p className="text-xs text-neutral-400 max-w-xs">
+            Zero-Trust Pre-Payment Cyber Defense is actively monitoring forensic streams.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function TrinetraAIChatbot() {
   const [open, setOpen] = React.useState(false);
   const [sent, setSent] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const [messages, setMessages] = React.useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -40,6 +74,19 @@ export default function TrinetraAIChatbot() {
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
+  // Client hydration sync & global event trigger
+  React.useEffect(() => {
+    setMounted(true);
+
+    const handleOpen = () => setOpen(true);
+    window.addEventListener("open-trinetra-chatbot", handleOpen);
+    (window as unknown as { openTrinetraChatbot?: () => void }).openTrinetraChatbot = () => setOpen(true);
+
+    return () => {
+      window.removeEventListener("open-trinetra-chatbot", handleOpen);
+    };
+  }, []);
+
   React.useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -47,7 +94,6 @@ export default function TrinetraAIChatbot() {
   }, [messages, loading, open]);
 
   const handlePromptSubmit = async (text: string, activeChip = "Agent") => {
-    // Keep the top-3 recent sent list behavior from MetalPromptBarDemo
     setSent((list) => [text, ...list].slice(0, 3));
 
     const userMsg: ChatMessage = {
@@ -96,54 +142,76 @@ export default function TrinetraAIChatbot() {
 
   return (
     <>
-      {/* Bottom-Right Floating Launcher Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+      {/* 
+        Bottom-Right Floating Launcher Button:
+        Topmost z-[99999] layer to guarantee it never gets hidden behind any canvas or hero backdrop.
+      */}
+      <div 
+        id="trinetra-chatbot-container" 
+        className="fixed bottom-6 right-6 z-[99999] pointer-events-auto flex items-center"
+      >
         {!open && (
           <button
+            id="trinetra-ai-chatbot-button"
             type="button"
             onClick={() => setOpen(true)}
-            className="group relative flex items-center gap-3 rounded-full border border-[#ff2a8d]/60 bg-[#07070a]/95 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_35px_rgba(255,42,141,0.55)] backdrop-blur-xl transition-all duration-300 hover:scale-105 hover:border-[#e5ff40] cursor-pointer"
+            aria-label="Open त्रिNETRA AI Chatbot"
+            className="group relative flex items-center gap-3 rounded-full border-2 border-[#ff2a8d] bg-[#07070a]/95 px-5 py-3.5 text-sm font-bold text-white shadow-[0_0_40px_rgba(255,42,141,0.85),0_0_15px_rgba(229,255,64,0.4)] backdrop-blur-2xl transition-all duration-300 hover:scale-105 hover:border-[#e5ff40] hover:shadow-[0_0_50px_rgba(229,255,64,0.7)] cursor-pointer"
           >
+            {/* Live Chartreuse Radar Ping Indicator */}
             <span className="relative flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e5ff40] opacity-75" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#e5ff40]" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e5ff40] opacity-80" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#e5ff40] shadow-[0_0_8px_#e5ff40]" />
             </span>
+
+            {/* Glowing Bot & Sparkles Icon */}
             <div className="relative flex items-center justify-center">
-              <MessageSquare className="h-4 w-4 text-[#ff2a8d] group-hover:text-[#e5ff40] transition-colors"/>
+              <MessageSquare className="h-4 w-4 text-[#ff2a8d] group-hover:text-[#e5ff40] transition-colors" />
               <Sparkles className="h-2.5 w-2.5 text-[#e5ff40] absolute -top-1.5 -right-1.5 animate-pulse" />
             </div>
-            <span>Ask त्रिNETRA AI</span>
+
+            {/* Main Label */}
+            <span className="tracking-tight font-extrabold text-white">
+              Ask त्रिNETRA AI
+            </span>
+
+            {/* Subtle live tag */}
+            <span className="hidden sm:inline-block rounded-full bg-[#e5ff40]/15 border border-[#e5ff40]/40 px-2 py-0.5 font-mono text-[9px] font-bold text-[#e5ff40]">
+              24/7 LIVE
+            </span>
           </button>
         )}
       </div>
 
       {/* Split-Window Chatbot & 3D Spline Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end p-0 sm:p-6 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative grid grid-cols-1 lg:grid-cols-12 w-full max-w-6xl h-[92vh] sm:h-[680px] rounded-t-3xl sm:rounded-3xl border border-white/15 bg-[#050505] shadow-[0_0_90px_-15px_rgba(255,42,141,0.45)] overflow-hidden">
+        <div className="fixed inset-0 z-[100000] pointer-events-auto flex items-end sm:items-center justify-center sm:justify-end p-0 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative grid grid-cols-1 lg:grid-cols-12 w-full max-w-6xl h-[92vh] sm:h-[680px] rounded-t-3xl sm:rounded-3xl border border-white/20 bg-[#050505] shadow-[0_0_100px_-10px_rgba(255,42,141,0.55)] overflow-hidden">
             {/* LEFT HALF (6 cols): Moving 3D Spline Model */}
             <div className="relative hidden lg:block lg:col-span-6 h-full w-full bg-[#050505] border-r border-white/10 overflow-hidden">
               {/* Top HUD Overlay on the 3D Scene */}
               <div className="pointer-events-none absolute top-5 left-6 right-6 z-20 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="h-2 w-2 rounded-full bg-[#e5ff40] animate-pulse" />
-                  <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#e5ff40]">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-[#e5ff40] font-bold">
                     त्रिNETRA // NEURAL 3D CORE
                   </span>
                 </div>
-                <span className="rounded-full border border-[#ff2a8d]/40 bg-[#ff2a8d]/10 px-2.5 py-0.5 font-mono text-[10px] text-[#ff2a8d]">
+                <span className="rounded-full border border-[#ff2a8d]/40 bg-[#ff2a8d]/15 px-2.5 py-0.5 font-mono text-[10px] text-[#ff2a8d] font-bold">
                   INTERACTIVE 3D
                 </span>
               </div>
 
-              {/* 3D Spline Canvas (oversized by 60px at bottom to clip out any Spline watermark) */}
-              <div className="relative w-full h-[calc(100%+60px)]">
-                <Spline scene="https://prod.spline.design/YzZysfckGeJ-wyy3/scene.splinecode"/>
+              {/* 3D Spline Canvas (clipped at bottom by 65px to hide any watermark) */}
+              <div className="relative w-full h-[calc(100%+65px)]">
+                <SplineErrorBoundary>
+                  <Spline scene="https://prod.spline.design/YzZysfckGeJ-wyy3/scene.splinecode" />
+                </SplineErrorBoundary>
               </div>
 
               {/* Bottom Caption */}
-              <div className="pointer-events-none absolute bottom-5 left-6 right-6 z-20 rounded-2xl border border-white/10 bg-[#050505]/80 backdrop-blur-md p-4">
-                <p className="text-xs font-mono uppercase tracking-wider text-[#ff2a8d] mb-1">
+              <div className="pointer-events-none absolute bottom-5 left-6 right-6 z-20 rounded-2xl border border-white/10 bg-[#050505]/85 backdrop-blur-md p-4">
+                <p className="text-xs font-mono uppercase tracking-wider text-[#ff2a8d] font-bold mb-1">
                   Autonomous UPI Defense Assistant
                 </p>
                 <p className="text-xs text-neutral-400 leading-relaxed">
@@ -157,15 +225,15 @@ export default function TrinetraAIChatbot() {
               {/* Chatbot Top Header */}
               <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 bg-[#050505]">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff2a8d]/15 border border-[#ff2a8d]/40 text-[#ff2a8d]">
-                    <Bot className="h-5 w-5"/>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff2a8d]/15 border border-[#ff2a8d]/40 text-[#ff2a8d] shadow-[0_0_15px_rgba(255,42,141,0.3)]">
+                    <Bot className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold tracking-tight text-white">
                         त्रिNETRA AI Sentinel
                       </h3>
-                      <span className="rounded-full bg-[#e5ff40]/15 border border-[#e5ff40]/40 px-2 py-0.5 font-mono text-[10px] text-[#e5ff40]">
+                      <span className="rounded-full bg-[#e5ff40]/15 border border-[#e5ff40]/40 px-2 py-0.5 font-mono text-[10px] text-[#e5ff40] font-bold">
                         LLM ONLINE
                       </span>
                     </div>
@@ -181,7 +249,7 @@ export default function TrinetraAIChatbot() {
                   aria-label="Close chatbot"
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-neutral-400 hover:border-[#ff2a8d] hover:text-white transition-colors cursor-pointer"
                 >
-                  <X className="h-4 w-4"/>
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
@@ -219,7 +287,7 @@ export default function TrinetraAIChatbot() {
                   >
                     {msg.role === "assistant" && (
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff2a8d]/20 border border-[#ff2a8d]/40 text-[#ff2a8d] mt-0.5">
-                        <ShieldAlert className="h-3.5 w-3.5"/>
+                        <ShieldAlert className="h-3.5 w-3.5" />
                       </div>
                     )}
 
@@ -232,7 +300,7 @@ export default function TrinetraAIChatbot() {
                       )}
                     >
                       {msg.mode && msg.role === "user" && (
-                        <span className="block text-[10px] font-mono uppercase tracking-wider text-white/75 mb-1">
+                        <span className="block text-[10px] font-mono uppercase tracking-wider text-white/75 mb-1 font-bold">
                           [{msg.mode}]
                         </span>
                       )}
@@ -241,7 +309,7 @@ export default function TrinetraAIChatbot() {
 
                     {msg.role === "user" && (
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white mt-0.5">
-                        <User className="h-3.5 w-3.5"/>
+                        <User className="h-3.5 w-3.5" />
                       </div>
                     )}
                   </div>
@@ -274,8 +342,8 @@ export default function TrinetraAIChatbot() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-neutral-500">
-                    Type and press Enter — in dark mode the chips reflect the send ring.
+                  <p className="text-xs text-neutral-500 font-mono">
+                    Type and press Enter &bull; Agent, Auto, and Tools modes available
                   </p>
                 )}
               </div>
