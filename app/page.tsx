@@ -11,6 +11,7 @@ import TransactionDnaTab from "@/components/dashboard/transaction-dna-tab"
 import AnalystPortalTab from "@/components/dashboard/analyst-portal-tab"
 import { FeatureSteps, FeatureStep } from "@/components/blocks/feature-section"
 import ColorChangeCards from "@/components/ui/color-change-card"
+import AiChatbotSection from "@/components/sections/ai-chatbot-section"
 import Pricing from "@/components/ui/pricing-1"
 import { 
   User, 
@@ -252,7 +253,10 @@ export default function Home() {
           {/* Section 2: Features of Our Website (ColorChangeCards) */}
           <ColorChangeCards onNavigateModule={handleModuleNavigation} />
 
-          {/* Section 3: Pricing (₹99) & FAQs */}
+          {/* Section 3: AI Sentinel Chatbot & 3D Model Split */}
+          <AiChatbotSection />
+
+          {/* Section 4: Pricing (₹99) & FAQs */}
           <Pricing onGetStarted={handlePricingGetStarted} />
         </main>
       )}
